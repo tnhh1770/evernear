@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carely — Đồng hành & Bảo vệ bình an cho người thân</title>
+  <meta name="description" content="Hệ thống giám sát an tâm và bảo vệ bình an cho người sống một mình và gia đình. Không camera, không nghe lén, bảo mật 100% riêng tư.">
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#E8F5E9',
+              100: '#C8E6C9',
+              500: '#2E7D32',
+              600: '#1B5E20',
+              700: '#144617',
+              teal: '#00796B',
+              amber: '#E65100',
+              surface: '#F7FAF8',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 4s ease-in-out infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-10px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .glassmorphism {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 235, 229, 0.8);
+    }
+    .halo-pulse {
+      animation: haloRing 2.4s ease-in-out infinite;
+    }
+    @keyframes haloRing {
+      0% { transform: scale(0.96); opacity: 0.35; }
+      50% { transform: scale(1.12); opacity: 0.12; }
+      100% { transform: scale(0.96); opacity: 0.35; }
+    }
+  </style>
+</head>
+<body class="bg-[#F8FAF9] text-[#1A2E22] font-sans antialiased selection:bg-brand-100 selection:text-brand-600">
+
+  <!-- NAVIGATION -->
+  <header class="sticky top-0 z-50 glassmorphism transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <a href="#" class="flex items-center space-x-3 group">
+        <div class="w-10 h-10 rounded-xl bg-brand-500 text-white flex items-center justify-center shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
+          <i data-lucide="shield" class="w-5 h-5"></i>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-2xl font-extrabold tracking-tight text-brand-600">Carely</span>
+          <span class="text-[11px] font-semibold text-brand-teal tracking-wide uppercase">Bình an mỗi ngày</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav -->
+      <nav class="hidden md:flex items-center space-x-8 text-sm font-semibold text-gray-700">
+        <a href="#features" class="hover:text-brand-500 transition-colors">Tính năng nổi bật</a>
+        <a href="#audiences" class="hover:text-brand-500 transition-colors">Dành cho ai?</a>
+        <a href="#privacy" class="hover:text-brand-500 transition-colors">Cam kết riêng tư</a>
+        <a href="#simulator" class="hover:text-brand-500 transition-colors text-brand-teal flex items-center">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-ping"></span>
+          Thử demo app
+        </a>
+        <a href="#how-it-works" class="hover:text-brand-500 transition-colors">Cách hoạt động</a>
+      </nav>
+
+      <div class="flex items-center space-x-3">
+        <a href="#download" class="inline-flex items-center justify-center px-5 py-2.5 rounded-full text-sm font-bold text-white bg-brand-500 hover:bg-brand-600 transition shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40">
+          <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+          Tải ứng dụng
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="relative pt-12 pb-20 md:pt-20 md:pb-32 overflow-hidden">
+    <!-- Background Glow Blobs -->
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-brand-100/60 to-emerald-100/40 rounded-full blur-3xl pointer-events-none -z-10"></div>
+    <div class="absolute top-1/2 right-10 w-[400px] h-[400px] bg-teal-100/40 rounded-full blur-3xl pointer-events-none -z-10"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+        
+        <!-- Left Column: Copy & Actions -->
+        <div class="lg:col-span-7 space-y-8 text-center lg:text-left">
+          
+          <!-- Trust Badge Pill -->
+          <div class="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-brand-50 border border-brand-200/80 text-brand-600 text-xs font-bold tracking-wide shadow-sm">
+            <i data-lucide="heart-handshake" class="w-4 h-4 text-brand-500"></i>
+            <span>Đồng hành & Bảo vệ bình an cho người thân</span>
+          </div>
+
+          <!-- Main Title -->
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#112419] tracking-tight leading-[1.15]">
+            Tự do sống một mình.<br/>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 via-teal-600 to-emerald-600">Bình an trọn vẹn</span> từng khoảnh khắc.
+          </h1>
+
+          <!-- Subtitle -->
+          <p class="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
+            Hệ thống an tâm thông minh dành cho <strong>người sống độc thân</strong> và <strong>cha mẹ lớn tuổi</strong>. Tự động nhận biết nhịp sinh hoạt, bảo vệ tin cậy 24/7 — <strong>không camera, không nghe lén, không theo dõi GPS liên tục.</strong>
+          </p>
+
+          <!-- Core Benefits Row -->
+          <div class="flex flex-wrap justify-center lg:justify-start gap-4 pt-2">
+            <div class="flex items-center space-x-2 text-sm font-semibold text-gray-700 bg-white/80 px-3.5 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+              <i data-lucide="check-circle-2" class="w-4 h-4 text-brand-500"></i>
+              <span>100% Tôn trọng riêng tư</span>
+            </div>
+            <div class="flex items-center space-x-2 text-sm font-semibold text-gray-700 bg-white/80 px-3.5 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+              <i data-lucide="battery-charging" class="w-4 h-4 text-brand-teal"></i>
+              <span>Siêu tiết kiệm pin</span>
+            </div>
+            <div class="flex items-center space-x-2 text-sm font-semibold text-gray-700 bg-white/80 px-3.5 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+              <i data-lucide="server" class="w-4 h-4 text-emerald-600"></i>
+              <span>Server giám sát độc lập</span>
+            </div>
+          </div>
+
+          <!-- CTA Buttons -->
+          <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
+            <a href="#download" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-base shadow-xl shadow-brand-500/25 transition-all transform hover:-translate-y-0.5 flex items-center justify-center space-x-3">
+              <i data-lucide="smartphone" class="w-5 h-5"></i>
+              <span>Cài đặt Carely miễn phí</span>
+            </a>
+            <a href="#simulator" class="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white hover:bg-gray-50 text-gray-800 font-bold text-base border border-gray-200/90 shadow-sm transition flex items-center justify-center space-x-2">
+              <i data-lucide="play" class="w-5 h-5 text-brand-500 fill-brand-500"></i>
+              <span>Thử nút "Tôi vẫn ổn"</span>
+            </a>
+          </div>
+
+          <!-- Social Proof Snippet -->
+          <div class="pt-6 border-t border-gray-200/60 flex items-center justify-center lg:justify-start space-x-4">
+            <div class="flex -space-x-2 overflow-hidden">
+              <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">TL</div>
+              <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-teal-600 text-white text-xs font-bold flex items-center justify-center">NM</div>
+              <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-amber-600 text-white text-xs font-bold flex items-center justify-center">KH</div>
+            </div>
+            <p class="text-xs text-gray-500 font-medium">
+              Được tin chọn bởi hơn <strong>10,000+</strong> người sống độc thân và các gia đình yêu thương
+            </p>
+          </div>
+        </div>
+
+        <!-- Right Column: Interactive Live App Mockup -->
+        <div class="lg:col-span-5 flex justify-center" id="simulator">
+          <div class="relative w-full max-w-[340px] sm:max-w-[360px] animate-float">
+            
+            <!-- Phone Device Frame -->
+            <div class="relative bg-[#1A1C1E] p-4 rounded-[48px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border-4 border-gray-800">
+              <!-- Notch -->
+              <div class="absolute top-7 left-1/2 -translate-x-1/2 w-28 h-4 bg-gray-900 rounded-full z-20"></div>
+
+              <!-- Screen Inside -->
+              <div class="relative bg-white rounded-[38px] overflow-hidden pt-8 pb-6 px-5 flex flex-col min-h-[580px] justify-between border border-gray-100">
+                
+                <!-- Phone App Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <div class="flex items-center space-x-2">
+                    <div class="w-6 h-6 rounded-md bg-brand-50 flex items-center justify-center text-brand-500">
+                      <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <span class="font-extrabold text-sm text-gray-900">Carely</span>
+                  </div>
+                  <div class="flex items-center space-x-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Đang bảo vệ</span>
+                  </div>
+                </div>
+
+                <!-- Central Status Halo Visual (Interactive) -->
+                <div class="py-6 flex flex-col items-center text-center">
+                  
+                  <div class="relative flex items-center justify-center mb-5 cursor-pointer group" onclick="simulateCheckIn()">
+                    <!-- Pulsing Halo Outer Ring -->
+                    <div id="sim-halo" class="absolute w-36 h-36 rounded-full bg-emerald-500/20 halo-pulse transition-all duration-500"></div>
+                    <!-- Mid Circle -->
+                    <div id="sim-mid" class="w-28 h-28 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center transition-all duration-500">
+                      <!-- Inner Icon Button -->
+                      <div id="sim-btn" class="w-20 h-20 rounded-full bg-brand-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/30 group-hover:scale-105 transition-all">
+                        <i data-lucide="heart" id="sim-icon" class="w-9 h-9 fill-white"></i>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Status Label -->
+                  <div id="sim-badge" class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                    <span id="sim-badge-text">Tình trạng ổn định</span>
+                  </div>
+
+                  <h3 id="sim-headline" class="text-base font-bold text-gray-900 mb-1">Bạn đang bình an</h3>
+                  <p id="sim-subtext" class="text-xs text-gray-500 leading-relaxed max-w-[240px]">
+                    Hoạt động gần nhất: <span id="sim-time" class="font-semibold text-gray-700">Vừa xong</span>
+                  </p>
+                </div>
+
+                <!-- Hero Action Check-in Button on Simulated Phone -->
+                <div class="space-y-3">
+                  <button 
+                    onclick="simulateCheckIn()" 
+                    id="sim-action-btn"
+                    class="w-full py-3.5 px-4 rounded-2xl bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-bold text-sm shadow-md shadow-brand-500/20 transition-all flex items-center justify-center space-x-2">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    <span>Tôi vẫn ổn (Bấm thử)</span>
+                  </button>
+
+                  <div id="sim-toast" class="opacity-0 transition-opacity duration-300 text-center py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold">
+                    ✓ Đã gửi xác nhận bình an đến người thân!
+                  </div>
+                </div>
+
+                <!-- Footer Reassurance in Simulator -->
+                <div class="pt-3 border-t border-gray-100 text-[11px] text-gray-400 text-center flex items-center justify-center space-x-1">
+                  <i data-lucide="lock" class="w-3 h-3 text-emerald-600"></i>
+                  <span>100% Không camera & Không nghe lén</span>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Floating Tooltip Card -->
+            <div class="absolute -bottom-6 -left-6 bg-white p-3.5 rounded-2xl shadow-xl border border-gray-100 max-w-[210px] hidden sm:flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <i data-lucide="bell" class="w-4 h-4"></i>
+              </div>
+              <div class="text-[11px] leading-tight">
+                <p class="font-bold text-gray-800">Không phiền hà</p>
+                <p class="text-gray-500">Chỉ thông báo khi phát hiện bất thường thực sự</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- AUDIENCE SECTION (DÀNH CHO AI?) -->
+  <section id="audiences" class="py-20 bg-white border-y border-gray-200/70">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-3xl mx-auto mb-16 space-y-3">
+        <span class="text-xs font-extrabold text-brand-500 tracking-wider uppercase">Dành cho mọi yêu thương</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          Ai cần người bạn đồng hành Carely?
+        </h2>
+        <p class="text-base text-gray-600">
+          Thiết kế tinh tế nhằm mang lại sự tự do tối đa cho người được bảo vệ, và sự an tâm trọn vẹn cho người chăm sóc.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- Card 1: Solo Dwellers -->
+        <div class="p-8 rounded-3xl bg-[#F8FAF9] border border-gray-200/80 hover:border-brand-300 transition-all hover:shadow-xl hover:shadow-brand-500/5 group">
+          <div class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i data-lucide="home" class="w-7 h-7"></i>
+          </div>
+          <span class="text-xs font-bold text-brand-teal uppercase tracking-wider">Người sống độc thân</span>
+          <h3 class="text-xl font-bold text-gray-900 mt-2 mb-3">Tự do sống một mình mà không sợ rủi ro bất ngờ</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Bạn thuê nhà một mình hoặc đi làm xa quê? Carely âm thầm nhận biết khi bạn sạc pin, mở màn hình mỗi ngày. Nếu có tai nạn hoặc ngất xỉu bất thường, hệ thống tự động báo người thân.
+          </p>
+          <div class="mt-6 pt-4 border-t border-gray-200/60 flex items-center text-xs font-bold text-brand-600">
+            <span>Bảo vệ quyền độc lập tự do</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 ml-1"></i>
+          </div>
+        </div>
+
+        <!-- Card 2: Elderly Parents -->
+        <div class="p-8 rounded-3xl bg-[#F8FAF9] border border-gray-200/80 hover:border-brand-300 transition-all hover:shadow-xl hover:shadow-brand-500/5 group">
+          <div class="w-14 h-14 rounded-2xl bg-teal-50 text-brand-teal flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i data-lucide="heart" class="w-7 h-7"></i>
+          </div>
+          <span class="text-xs font-bold text-brand-teal uppercase tracking-wider">Bố mẹ lớn tuổi</span>
+          <h3 class="text-xl font-bold text-gray-900 mt-2 mb-3">Hiếu thảo từ xa, không cần lắp camera ngột ngạt</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Bố mẹ ở quê thường ngại lắp camera vì cảm giác bị giám sát. Với Carely, bạn luôn biết mẹ đã thức dậy hay vừa cắm sạc điện thoại lúc mấy giờ, giữ trọn sự tôn trọng cho người lớn.
+          </p>
+          <div class="mt-6 pt-4 border-t border-gray-200/60 flex items-center text-xs font-bold text-brand-teal">
+            <span>Chăm sóc cha mẹ tế nhị</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 ml-1"></i>
+          </div>
+        </div>
+
+        <!-- Card 3: High-Risk Workers -->
+        <div class="p-8 rounded-3xl bg-[#F8FAF9] border border-gray-200/80 hover:border-brand-300 transition-all hover:shadow-xl hover:shadow-brand-500/5 group">
+          <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i data-lucide="compass" class="w-7 h-7"></i>
+          </div>
+          <span class="text-xs font-bold text-brand-teal uppercase tracking-wider">Đi xa & Làm ca đêm</span>
+          <h3 class="text-xl font-bold text-gray-900 mt-2 mb-3">Chốt an toàn cho những chuyến đi và ca làm việc</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Lái xe đường dài, đi công tác địa hình, hay làm ca đêm đơn độc? Cài đặt khoảng thời gian mong đợi. Chỉ cần chạm 1 nút "Tôi vẫn ổn" khi về đến nơi an toàn.
+          </p>
+          <div class="mt-6 pt-4 border-t border-gray-200/60 flex items-center text-xs font-bold text-emerald-700">
+            <span>An tâm mọi chặng đường</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 ml-1"></i>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PRIVACY GUARANTEE & COMPARISON (TRIẾT LÝ RIÊNG TƯ) -->
+  <section id="privacy" class="py-20 bg-[#F4F8F5]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        <div class="lg:col-span-5 space-y-6">
+          <span class="text-xs font-extrabold text-brand-500 tracking-wider uppercase">Tôn trọng tuyệt đối</span>
+          <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight">
+            An toàn không đồng nghĩa với việc bị theo dõi đời tư.
+          </h2>
+          <p class="text-gray-600 leading-relaxed text-sm sm:text-base">
+            Phần lớn các giải pháp hiện nay đòi hỏi bạn phải cài đặt camera trong phòng ngủ, bật microphone, hoặc cấp quyền theo dõi vị trí GPS 24/7 gây hao pin và xâm phạm quyền riêng tư.
+          </p>
+          <p class="text-gray-600 leading-relaxed text-sm sm:text-base">
+            <strong>Carely chọn con đường khác:</strong> Chúng tôi chỉ quan tâm duy nhất đến một câu hỏi: <em>"Bạn có đang sinh hoạt bình thường không?"</em> mà không bao giờ tò mò bạn đang làm gì hay ở đâu.
+          </p>
+
+          <div class="p-4 rounded-2xl bg-white border border-brand-200 shadow-sm flex items-start space-x-3">
+            <i data-lucide="shield-check" class="w-6 h-6 text-brand-500 shrink-0 mt-0.5"></i>
+            <div class="text-xs text-gray-700 leading-normal">
+              <strong>Cam kết Calm UX của Carely:</strong> Từ ngữ thông báo luôn êm dịu, không giật gân, không báo động giả, không làm người nhà hoảng sợ vô cớ.
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparison Table Card -->
+        <div class="lg:col-span-7">
+          <div class="bg-white rounded-3xl shadow-xl border border-gray-200 overflow-hidden">
+            <div class="p-6 bg-brand-600 text-white flex justify-between items-center">
+              <div>
+                <h3 class="text-lg font-bold">Bảng so sánh bảo vệ quyền riêng tư</h3>
+                <p class="text-xs text-brand-100">Carely so với các ứng dụng theo dõi thông thường</p>
+              </div>
+              <span class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">Privacy First</span>
+            </div>
+
+            <div class="divide-y divide-gray-100 text-sm">
+              <div class="grid grid-cols-12 p-4 items-center bg-gray-50 font-bold text-xs text-gray-500 uppercase tracking-wider">
+                <div class="col-span-6">Tiêu chí riêng tư</div>
+                <div class="col-span-3 text-center text-brand-600">Carely</div>
+                <div class="col-span-3 text-center text-gray-400">App theo dõi khác</div>
+              </div>
+
+              <div class="grid grid-cols-12 p-4 items-center">
+                <div class="col-span-6 font-semibold text-gray-800 flex items-center">
+                  <i data-lucide="camera-off" class="w-4 h-4 mr-2 text-brand-500"></i>
+                  Camera giám sát hình ảnh
+                </div>
+                <div class="col-span-3 text-center font-bold text-brand-600 flex items-center justify-center">
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs">KHÔNG DÙNG</span>
+                </div>
+                <div class="col-span-3 text-center text-gray-400 text-xs">Yêu cầu bật 24/7</div>
+              </div>
+
+              <div class="grid grid-cols-12 p-4 items-center bg-gray-50/50">
+                <div class="col-span-6 font-semibold text-gray-800 flex items-center">
+                  <i data-lucide="mic-off" class="w-4 h-4 mr-2 text-brand-500"></i>
+                  Ghi âm / Nghe lén âm thanh
+                </div>
+                <div class="col-span-3 text-center font-bold text-brand-600 flex items-center justify-center">
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs">KHÔNG DÙNG</span>
+                </div>
+                <div class="col-span-3 text-center text-gray-400 text-xs">Có thể kích hoạt</div>
+              </div>
+
+              <div class="grid grid-cols-12 p-4 items-center">
+                <div class="col-span-6 font-semibold text-gray-800 flex items-center">
+                  <i data-lucide="map-pin-off" class="w-4 h-4 mr-2 text-brand-500"></i>
+                  Theo dõi vị trí GPS liên tục
+                </div>
+                <div class="col-span-3 text-center font-bold text-brand-600 flex items-center justify-center">
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs">KHÔNG THEO DÕI</span>
+                </div>
+                <div class="col-span-3 text-center text-gray-400 text-xs">Vẽ bản đồ di chuyển</div>
+              </div>
+
+              <div class="grid grid-cols-12 p-4 items-center bg-gray-50/50">
+                <div class="col-span-6 font-semibold text-gray-800 flex items-center">
+                  <i data-lucide="battery" class="w-4 h-4 mr-2 text-brand-500"></i>
+                  Mức độ tiêu thụ pin
+                </div>
+                <div class="col-span-3 text-center font-bold text-emerald-700 text-xs font-bold">Dưới 1% / ngày</div>
+                <div class="col-span-3 text-center text-red-500 text-xs">15 - 25% / ngày</div>
+              </div>
+
+              <div class="grid grid-cols-12 p-4 items-center">
+                <div class="col-span-6 font-semibold text-gray-800 flex items-center">
+                  <i data-lucide="server" class="w-4 h-4 mr-2 text-brand-500"></i>
+                  Bảo vệ khi điện thoại tắt nguồn/hết pin
+                </div>
+                <div class="col-span-3 text-center font-bold text-emerald-700 text-xs">Server tự kích hoạt</div>
+                <div class="col-span-3 text-center text-gray-400 text-xs">Mất kết nối hoàn toàn</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS (CÁCH HOẠT ĐỘNG) -->
+  <section id="how-it-works" class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-3xl mx-auto mb-16 space-y-3">
+        <span class="text-xs font-extrabold text-brand-500 tracking-wider uppercase">Đơn giản & Thông minh</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          Hoạt động thế nào chỉ trong 3 bước?
+        </h2>
+        <p class="text-base text-gray-600">
+          Không cần cài đặt phức tạp, không cần thiết bị đeo đắt tiền. Mọi thứ vận hành ngay trên chiếc điện thoại sẵn có.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+        
+        <!-- Step 1 -->
+        <div class="relative p-8 rounded-3xl bg-[#F8FAF9] border border-gray-200/80">
+          <div class="w-12 h-12 rounded-xl bg-brand-500 text-white font-extrabold text-lg flex items-center justify-center mb-6 shadow-md shadow-brand-500/20">
+            1
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">Cài app & Quét mã kết nối</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Tải Carely và gửi mã mời hoặc quét mã QR với con cái hoặc bạn cùng phòng. Thiết lập khung giờ nhắc nhở phù hợp với lịch sinh hoạt cá nhân.
+          </p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="relative p-8 rounded-3xl bg-[#F8FAF9] border border-gray-200/80">
+          <div class="w-12 h-12 rounded-xl bg-brand-teal text-white font-extrabold text-lg flex items-center justify-center mb-6 shadow-md shadow-brand-teal/20">
+            2
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">Sinh hoạt bình thường</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Bạn không cần mở app liên tục. Khi bạn sạc điện thoại, mở khóa màn hình hoặc bấm "Tôi vẫn ổn", Carely tự động ghi nhận bạn đang bình an.
+          </p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="relative p-8 rounded-3xl bg-[#F8FAF9] border border-gray-200/80">
+          <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white font-extrabold text-lg flex items-center justify-center mb-6 shadow-md shadow-emerald-600/20">
+            3
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">Bảo vệ & Hỗ trợ kịp thời</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Nếu quá hạn cài đặt mà không có bất kỳ phản hồi nào, máy chủ độc lập sẽ gửi thông báo êm dịu nhắc bạn, rồi tự động liên hệ người thân khi khẩn cấp.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS (ĐÁNH GIÁ NGƯỜI DÙNG) -->
+  <section class="py-20 bg-[#F4F8F5]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-3xl mx-auto mb-16 space-y-3">
+        <span class="text-xs font-extrabold text-brand-500 tracking-wider uppercase">Cộng đồng tin cậy</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          Cảm nhận từ những người dùng đầu tiên
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <div class="p-6 rounded-3xl bg-white border border-gray-200 shadow-sm flex flex-col justify-between">
+          <p class="text-sm text-gray-700 italic leading-relaxed">
+            "Mình là lập trình viên sống một mình ở Sài Gòn, rất sợ tình huống ở phòng trọ bị ốm đau ngất xỉu mà không ai biết. Từ ngày cài Carely, mỗi sáng mở máy là app tự tính hoạt động, mẹ ở quê mở app thấy mình ổn là yên tâm hẳn."
+          </p>
+          <div class="mt-6 flex items-center space-x-3 pt-4 border-t border-gray-100">
+            <div class="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm">
+              HQ
+            </div>
+            <div>
+              <div class="font-bold text-sm text-gray-900">Hoàng Quân</div>
+              <div class="text-xs text-gray-500">26 tuổi • TP. Hồ Chí Minh</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 rounded-3xl bg-white border border-gray-200 shadow-sm flex flex-col justify-between">
+          <p class="text-sm text-gray-700 italic leading-relaxed">
+            "Bố tôi 68 tuổi ở quê sống một mình. Trước đây tôi muốn lắp camera nhưng ông cụ giận dỗi vì thấy mất tự do. Cài Carely ông thích lắm vì chỉ việc cắm sạc điện thoại mỗi tối là con cái biết bố bình an."
+          </p>
+          <div class="mt-6 flex items-center space-x-3 pt-4 border-t border-gray-100">
+            <div class="w-10 h-10 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm">
+              MT
+            </div>
+            <div>
+              <div class="font-bold text-sm text-gray-900">Minh Thảo</div>
+              <div class="text-xs text-gray-500">Chăm sóc bố từ xa • Hà Nội</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 rounded-3xl bg-white border border-gray-200 shadow-sm flex flex-col justify-between">
+          <p class="text-sm text-gray-700 italic leading-relaxed">
+            "Điều tôi thích nhất ở Carely là không bị giật mình. Giao diện rất xanh, dịu nhẹ, ngôn từ 'Bạn vẫn ổn chứ?' nghe ấm áp chứ không dùng những từ khủng khiếp như các app khẩn cấp thông thường."
+          </p>
+          <div class="mt-6 flex items-center space-x-3 pt-4 border-t border-gray-100">
+            <div class="w-10 h-10 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-sm">
+              AT
+            </div>
+            <div>
+              <div class="font-bold text-sm text-gray-900">Anh Tuấn</div>
+              <div class="text-xs text-gray-500">Kỹ sư công trình • Đà Nẵng</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- DOWNLOAD CTA BANNER -->
+  <section id="download" class="py-20 bg-brand-600 text-white relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+      
+      <div class="max-w-3xl mx-auto space-y-6">
+        <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur text-xs font-semibold">
+          <i data-lucide="sparkles" class="w-4 h-4 text-emerald-300"></i>
+          <span>Bảo vệ sự bình an của bạn và người thân ngay hôm nay</span>
+        </div>
+
+        <h2 class="text-4xl sm:text-5xl font-extrabold tracking-tight">
+          Bắt đầu miễn phí cùng Carely
+        </h2>
+
+        <p class="text-base sm:text-lg text-emerald-100 leading-relaxed font-normal max-w-2xl mx-auto">
+          Cài đặt chỉ mất 60 giây. Không cần thiết bị ngoại vi đắt đỏ. An tâm cho bạn, thanh thản cho người thân trong gia đình.
+        </p>
+
+        <!-- Download Buttons -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+          <a href="#" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white text-brand-600 hover:bg-gray-100 font-bold text-base shadow-xl transition flex items-center justify-center space-x-3">
+            <i data-lucide="apple" class="w-6 h-6"></i>
+            <div class="text-left leading-tight">
+              <div class="text-[10px] uppercase font-semibold text-gray-500">Tải trên</div>
+              <div class="text-sm font-extrabold text-gray-900">App Store (iOS)</div>
+            </div>
+          </a>
+
+          <a href="#" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gray-900 text-white hover:bg-black font-bold text-base shadow-xl transition flex items-center justify-center space-x-3">
+            <i data-lucide="play" class="w-6 h-6 fill-white"></i>
+            <div class="text-left leading-tight">
+              <div class="text-[10px] uppercase font-semibold text-gray-400">Tải trên</div>
+              <div class="text-sm font-extrabold text-white">Google Play (Android)</div>
+            </div>
+          </a>
+        </div>
+
+        <p class="text-xs text-emerald-200 pt-2">
+          Hỗ trợ Android 8.0+ và iOS 15.0+ • Miễn phí trọn đời các tính năng an toàn cốt lõi
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-gray-950 text-gray-400 py-12 border-t border-gray-800 text-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+        
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-brand-500 text-white flex items-center justify-center">
+            <i data-lucide="shield" class="w-4 h-4"></i>
+          </div>
+          <span class="text-lg font-bold text-white">Carely</span>
+          <span class="text-xs text-gray-500">© 2026 Carely Team. All rights reserved.</span>
+        </div>
+
+        <div class="flex flex-wrap justify-center gap-6 text-xs">
+          <a href="#" class="hover:text-white transition">Chính sách bảo mật</a>
+          <a href="#" class="hover:text-white transition">Điều khoản sử dụng</a>
+          <a href="#" class="hover:text-white transition">Hướng dẫn kết nối QR</a>
+          <a href="#" class="hover:text-white transition">Liên hệ hỗ trợ</a>
+        </div>
+
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT: Interactive Phone Mockup Simulator -->
+  <script>
+    lucide.createIcons();
+
+    let isSafe = true;
+
+    function simulateCheckIn() {
+      const halo = document.getElementById('sim-halo');
+      const badge = document.getElementById('sim-badge');
+      const badgeText = document.getElementById('sim-badge-text');
+      const headline = document.getElementById('sim-headline');
+      const subtext = document.getElementById('sim-subtext');
+      const timeSpan = document.getElementById('sim-time');
+      const toast = document.getElementById('sim-toast');
+      const btn = document.getElementById('sim-btn');
+
+      // Trigger tactile pulse animation
+      btn.style.transform = 'scale(0.92)';
+      setTimeout(() => { btn.style.transform = 'scale(1)'; }, 150);
+
+      // Show toast
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+
+      badge.className = 'inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-2';
+      badgeText.textContent = 'Tình trạng ổn định (Đã gửi)';
+      headline.textContent = 'Bạn đang bình an';
+      timeSpan.textContent = 'Vừa xong (1 giây trước)';
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 3500);
+    }
+  </script>
+</body>
+</html>

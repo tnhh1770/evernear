@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "100000000001",
+    "project_id": "carely-dev",
+    "storage_bucket": "carely-dev.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:100000000001:android:1234567890abcdef",
+        "android_client_info": {
+          "package_name": "com.carely.app.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyMockKeyForCarelyDevelopmentEnvironment"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
