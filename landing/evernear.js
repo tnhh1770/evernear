@@ -404,7 +404,7 @@
       paint(code, cache[code]);
       return;
     }
-    fetch("/site/i18n/" + code + ".json", { cache: "force-cache" })
+    fetch("/i18n/" + code + ".json", { cache: "force-cache" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (d) {
