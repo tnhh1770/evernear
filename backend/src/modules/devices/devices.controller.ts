@@ -51,7 +51,8 @@ export class DevicesController {
     @Param('id') id: string,
     @Body() dto: UpdateDeviceTokenDto,
   ) {
-    return this.devicesService.updatePushToken(user.id, id, dto.pushToken);
+    const token = dto.pushToken || dto.fcmToken || '';
+    return this.devicesService.updatePushToken(user.id, id, token);
   }
 
   @Delete(':id')

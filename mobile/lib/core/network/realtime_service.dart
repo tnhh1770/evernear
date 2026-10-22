@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../constants/api_endpoints.dart';
 
-class RealtimeService {
+class RealtimeService with WidgetsBindingObserver {
   static final RealtimeService _instance = RealtimeService._internal();
   factory RealtimeService() => _instance;
-  RealtimeService._internal();
+  RealtimeService._internal() {
+    try {
+      WidgetsBinding.instance.addObserver(this);
+    } catch (_) {}
+  }
 
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
@@ -17,6 +21,7 @@ class RealtimeService {
   String? _token;
   bool _isDisposed = false;
   bool _isConnected = false;
+  bool _isPaused = false;
   int _reconnectAttempts = 0;
 
   final StreamController<Map<String, dynamic>> _eventController =
@@ -24,22 +29,54 @@ class RealtimeService {
 
   Stream<Map<String, dynamic>> get eventStream => _eventController.stream;
   bool get isConnected => _isConnected;
+  bool get isPaused => _isPaused;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      pause();
+    } else if (state == AppLifecycleState.resumed) {
+      resume();
+    }
+  }
+
+  void pause() {
+    if (_isPaused) return;
+    _isPaused = true;
+    _reconnectTimer?.cancel();
+    _heartbeatTimer?.cancel();
+    _cleanupSocket();
+    _isConnected = false;
+    debugPrint('[RealtimeService] Paused WebSocket & reconnect timer (background/paused)');
+  }
+
+  void resume() {
+    if (!_isPaused) return;
+    _isPaused = false;
+    debugPrint('[RealtimeService] Resuming WebSocket connection (app foregrounded)');
+    if (_token != null && !_isDisposed) {
+      _reconnectAttempts = 0;
+      _establishConnection();
+    }
+  }
 
   void connect(String token) {
     if (_token == token && _isConnected) return;
     _token = token;
     _reconnectAttempts = 0;
-    _establishConnection();
+    if (!_isPaused) {
+      _establishConnection();
+    }
   }
 
   void _establishConnection() {
-    if (_token == null || _token!.isEmpty || _isDisposed) return;
+    if (_token == null || _token!.isEmpty || _isDisposed || _isPaused) return;
 
     _cleanupSocket();
 
     try {
       final url = ApiEndpoints.wsUrl(_token!);
-      debugPrint('[RealtimeService] Connecting to $url');
+      debugPrint('[RealtimeService] Connecting to WebSocket (token sanitized)');
       final uri = Uri.parse(url);
       _channel = WebSocketChannel.connect(uri);
 
@@ -71,23 +108,35 @@ class RealtimeService {
   }
 
   void _onDataReceived(dynamic data) {
-    if (data is String) {
-      if (data == 'PONG' || data.trim() == 'pong') return;
-      try {
-        final decoded = jsonDecode(data);
-        if (decoded is Map<String, dynamic>) {
-          debugPrint('[RealtimeService] Event received: ${decoded['type']}');
-          _eventController.add(decoded);
-        }
-      } catch (e) {
-        debugPrint('[RealtimeService] Error decoding message: $e');
+    try {
+      String text;
+      if (data is String) {
+        text = data;
+      } else if (data is List<int>) {
+        text = utf8.decode(data);
+      } else {
+        text = data.toString();
       }
+
+      if (text == 'PONG' || text.trim() == 'pong') return;
+      final decoded = jsonDecode(text);
+      if (decoded is Map<String, dynamic>) {
+        debugPrint('[RealtimeService] Event received: ${decoded['type']}');
+        _eventController.add(decoded);
+      }
+    } catch (e) {
+      debugPrint('[RealtimeService] Error decoding message: $e');
     }
   }
 
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
+    if (_isPaused) return;
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (timer) {
+      if (_isPaused) {
+        timer.cancel();
+        return;
+      }
       if (_isConnected && _channel != null) {
         try {
           _channel!.sink.add(jsonEncode({'type': 'PING'}));
@@ -97,7 +146,7 @@ class RealtimeService {
   }
 
   void _scheduleReconnect() {
-    if (_token == null || _isDisposed) return;
+    if (_token == null || _isDisposed || _isPaused) return;
 
     _reconnectTimer?.cancel();
     _reconnectAttempts++;
@@ -106,7 +155,7 @@ class RealtimeService {
         '[RealtimeService] Scheduling reconnect in ${backoffSeconds}s (attempt $_reconnectAttempts)');
 
     _reconnectTimer = Timer(Duration(seconds: backoffSeconds), () {
-      if (_token != null && !_isDisposed) {
+      if (_token != null && !_isDisposed && !_isPaused) {
         _establishConnection();
       }
     });
@@ -115,6 +164,7 @@ class RealtimeService {
   void disconnect() {
     _token = null;
     _isConnected = false;
+    _isPaused = false;
     _reconnectTimer?.cancel();
     _heartbeatTimer?.cancel();
     _cleanupSocket();
@@ -136,7 +186,11 @@ class RealtimeService {
 
   void dispose() {
     _isDisposed = true;
+    try {
+      WidgetsBinding.instance.removeObserver(this);
+    } catch (_) {}
     disconnect();
     _eventController.close();
   }
 }
+

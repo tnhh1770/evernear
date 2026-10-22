@@ -230,16 +230,16 @@ void main() {
       expect(find.text('Tùy biến thời gian'), findsOneWidget);
       expect(find.text('Áp dụng'), findsOneWidget);
 
-      // Enter out-of-bounds value 5 minutes
+      // Enter out-of-bounds value 0 minutes
       final textField = find.byType(TextField);
-      await tester.enterText(textField, '5');
+      await tester.enterText(textField, '0');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Áp dụng'));
       await tester.pumpAndSettle();
 
       // Validation error shown, dialog still open
-      expect(find.text('Số phút phải từ 15 đến 1440 (24 giờ)'), findsOneWidget);
+      expect(find.text('Số phút phải từ 1 đến 1440 (24 giờ)'), findsOneWidget);
       expect(find.text('Tùy biến thời gian'), findsOneWidget);
 
       // Enter valid custom minutes 90

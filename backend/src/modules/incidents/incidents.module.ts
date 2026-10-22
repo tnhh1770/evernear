@@ -9,6 +9,7 @@ import { IncidentEventService } from './incident-event.service';
 import { RiskEvaluatorService } from './risk-evaluator.service';
 import { IncidentsController } from './incidents.controller';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
       MonitoringConfig,
     ]),
     RealtimeModule,
+    NotificationsModule,
   ],
   providers: [IncidentsService, IncidentEventService, RiskEvaluatorService],
   controllers: [IncidentsController],

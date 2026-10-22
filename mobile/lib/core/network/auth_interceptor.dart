@@ -30,39 +30,59 @@ class AuthInterceptor extends Interceptor {
     return handler.next(options);
   }
 
+  static Future<String?>? _refreshFuture;
+
+  static Future<String?> _performTokenRefresh() async {
+    try {
+      final refreshToken = await LocalStorage.getRefreshToken();
+      if (refreshToken == null) return null;
+
+      final refreshDio = Dio(BaseOptions(baseUrl: ApiEndpoints.baseUrl));
+      final response = await refreshDio.post(
+        ApiEndpoints.refresh,
+        data: {'refreshToken': refreshToken},
+      );
+
+      final newAccessToken = response.data['accessToken'] as String?;
+      final newRefreshToken = response.data['refreshToken'] as String?;
+
+      if (newAccessToken != null && newRefreshToken != null) {
+        await LocalStorage.saveTokens(
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+        );
+        return newAccessToken;
+      }
+      return null;
+    } catch (e) {
+      // Only clear auth if server explicitly rejected the refresh token with 401/403.
+      // Never wipe user tokens on connection glitches, offline mode, or timeouts!
+      if (e is DioException &&
+          e.response != null &&
+          (e.response!.statusCode == 401 || e.response!.statusCode == 403)) {
+        await LocalStorage.clearAuth();
+      }
+      return null;
+    } finally {
+      _refreshFuture = null;
+    }
+  }
+
   @override
   Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401 && !err.requestOptions.path.contains('/auth/')) {
-      final refreshToken = await LocalStorage.getRefreshToken();
-      if (refreshToken != null) {
+      _refreshFuture ??= _performTokenRefresh();
+      final newAccessToken = await _refreshFuture;
+
+      if (newAccessToken != null) {
+        final retryOptions = err.requestOptions;
+        retryOptions.headers['Authorization'] = 'Bearer $newAccessToken';
         try {
-          final refreshDio = Dio(BaseOptions(baseUrl: ApiEndpoints.baseUrl));
-          final response = await refreshDio.post(
-            ApiEndpoints.refresh,
-            data: {'refreshToken': refreshToken},
-          );
-
-          final newAccessToken = response.data['accessToken'];
-          final newRefreshToken = response.data['refreshToken'];
-
-          if (newAccessToken != null && newRefreshToken != null) {
-            await LocalStorage.saveTokens(
-              accessToken: newAccessToken,
-              refreshToken: newRefreshToken,
-            );
-
-            final retryOptions = err.requestOptions;
-            retryOptions.headers['Authorization'] = 'Bearer $newAccessToken';
-            final cloneReq = await _dio.fetch(retryOptions);
-            return handler.resolve(cloneReq);
-          }
+          final cloneReq = await _dio.fetch(retryOptions);
+          return handler.resolve(cloneReq);
         } catch (e) {
-          // Only clear auth if server explicitly rejected the refresh token with 401/403.
-          // Never wipe user tokens on connection glitches, offline mode, or timeouts!
-          if (e is DioException &&
-              e.response != null &&
-              (e.response!.statusCode == 401 || e.response!.statusCode == 403)) {
-            await LocalStorage.clearAuth();
+          if (e is DioException) {
+            return handler.next(e);
           }
         }
       }

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource, In } from 'typeorm';
 import { MonitoringConfig } from '../monitoring/entities/monitoring-config.entity';
@@ -10,6 +10,7 @@ import { MonitoringScheduler } from '../monitoring/monitoring-scheduler';
 import { RiskEvaluatorService } from '../incidents/risk-evaluator.service';
 import { IncidentsService } from '../incidents/incidents.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { RedisService } from '../../common/redis/redis.service';
 import {
   MonitoringState,
@@ -48,6 +49,7 @@ export class MonitoringWorkerService {
     private readonly riskEvaluator: RiskEvaluatorService,
     private readonly incidentsService: IncidentsService,
     private readonly notificationsService: NotificationsService,
+    @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
   /**
@@ -95,9 +97,9 @@ export class MonitoringWorkerService {
       await queryRunner.startTransaction();
 
       // Query only configs that are enabled and due for evaluation
-      const dueConfigs = await queryRunner.manager
+      let qb = queryRunner.manager
         .createQueryBuilder(MonitoringConfig, 'config')
-        .setLock('pessimistic_write')
+        .setLock('pessimistic_write', undefined, ['config'])
         .setOnLocked('skip_locked')
         .innerJoinAndSelect('config.relationship', 'relationship')
         .innerJoinAndSelect('relationship.monitoredUser', 'monitoredUser')
@@ -106,9 +108,13 @@ export class MonitoringWorkerService {
         .andWhere('relationship.status = :relStatus', {
           relStatus: RelationshipStatus.ACCEPTED,
         })
-        .andWhere('config.next_evaluation_at <= NOW()')
-        .take(batchSize)
-        .getMany();
+        .andWhere('config.next_evaluation_at <= NOW()');
+
+      if (typeof qb.orderBy === 'function') {
+        qb = qb.orderBy('config.nextEvaluationAt', 'ASC');
+      }
+
+      const dueConfigs = await qb.take(batchSize).getMany();
 
       if (dueConfigs.length === 0) {
         await queryRunner.commitTransaction();
@@ -227,6 +233,15 @@ export class MonitoringWorkerService {
     for (const act of deferredActions) {
       try {
         if (act.type === 'CHECK_IN_PROMPT') {
+          if (this.realtimeService) {
+            this.realtimeService
+              .emitToUser(act.recipientUserId, {
+                type: 'CHECK_IN_PROMPT',
+                recipientUserId: act.recipientUserId,
+                relationshipId: act.customData?.relationshipId,
+              })
+              .catch(() => {});
+          }
           await this.notificationsService.sendNotification({
             recipientUserId: act.recipientUserId,
             templateName: act.templateName,
@@ -246,16 +261,20 @@ export class MonitoringWorkerService {
             },
           });
         } else if (act.type === 'ESCALATED') {
+          let escalatedIncident: Incident | null = null;
           if (act.openIncidentIdToEscalate) {
-            const inc = await this.dataSource.getRepository(Incident).findOne({
+            const incRepo = this.dataSource.getRepository(Incident);
+            const inc = await incRepo.findOne({
               where: { id: act.openIncidentIdToEscalate },
             });
-            if (inc) {
+            if (inc && inc.status !== IncidentStatus.ESCALATED) {
               inc.status = IncidentStatus.ESCALATED;
               inc.escalatedAt = new Date();
-              await this.dataSource.getRepository(Incident).save(inc);
+              await incRepo.save(inc);
+              escalatedIncident = inc;
 
-              const event = this.dataSource.getRepository(IncidentEvent).create({
+              const eventRepo = this.dataSource.getRepository(IncidentEvent);
+              const event = eventRepo.create({
                 incidentId: inc.id,
                 type: IncidentEventType.ESCALATION_TRIGGERED,
                 timestamp: inc.escalatedAt,
@@ -265,9 +284,25 @@ export class MonitoringWorkerService {
                   escalatedAt: inc.escalatedAt.toISOString(),
                 },
               });
-              await this.dataSource.getRepository(IncidentEvent).save(event);
+              await eventRepo.save(event);
             }
           }
+
+          if (this.realtimeService && escalatedIncident) {
+            this.realtimeService
+              .emitToRelationship(escalatedIncident.relationshipId, {
+                type: 'INCIDENT_ESCALATED',
+                incidentId: escalatedIncident.id,
+                relationshipId: escalatedIncident.relationshipId,
+                status: IncidentStatus.ESCALATED,
+                escalatedAt: (escalatedIncident.escalatedAt || new Date()).toISOString(),
+                riskScore: escalatedIncident.riskScore,
+              })
+              .catch((err) => {
+                this.logger.warn(`Failed emitting INCIDENT_ESCALATED: ${err?.message || err}`);
+              });
+          }
+
           await this.notificationsService.sendNotification({
             recipientUserId: act.recipientUserId,
             templateName: act.templateName,
@@ -306,9 +341,19 @@ export class MonitoringWorkerService {
 
     if (!isInWindow) {
       // Outside active window (e.g. night hours 22:00 -> 07:00).
-      // Reschedule evaluation to start of next active window.
+      // Reschedule evaluation to start of next active window plus remaining active threshold.
       const nextStart = MonitoringScheduler.getNextActiveWindowStart(now, windows, timezone);
-      config.nextEvaluationAt = nextStart;
+      const lastActive = config.lastMeaningfulActivityAt
+        ? new Date(config.lastMeaningfulActivityAt)
+        : new Date(0);
+      const activeInactiveMinutes = MonitoringScheduler.calculateActiveInactiveMinutes(
+        lastActive,
+        now,
+        windows,
+        timezone,
+      );
+      const remainingMinutes = Math.max(0, config.inactivityThresholdMinutes - activeInactiveMinutes);
+      config.nextEvaluationAt = new Date(nextStart.getTime() + remainingMinutes * 60 * 1000);
       if (saveImmediately) {
         await queryRunner.manager.save(config);
       }
@@ -320,7 +365,12 @@ export class MonitoringWorkerService {
       ? new Date(config.lastMeaningfulActivityAt)
       : new Date(0);
 
-    const minutesInactive = Math.floor((now.getTime() - lastActive.getTime()) / (60 * 1000));
+    const minutesInactive = MonitoringScheduler.calculateActiveInactiveMinutes(
+      lastActive,
+      now,
+      windows,
+      timezone,
+    );
 
     // 3. State-based branching
     switch (config.currentState) {

@@ -118,13 +118,13 @@ describe('Adversarial Challenger 2 Deep Audit: Features 37–47 Edge Cases', () 
       // Tier 3: Template missing in English but exists in Vietnamese -> fall back to vi
       // If template is completely unknown in all catalogs -> Tier 4 default template
       const unknownTemplate = templateService.render('NON_EXISTENT_TEMPLATE_ABC', {}, 'de');
-      expect(unknownTemplate.title).toBe('Carely');
-      expect(unknownTemplate.body).toBe('Neue Benachrichtigung aus dem Carely-System.');
+      expect(unknownTemplate.title).toBe('Evernear');
+      expect(unknownTemplate.body).toBe('Neue Benachrichtigung aus dem Evernear-System.');
 
       // Tier 4 with unknown locale -> English default template
       const unknownBoth = templateService.render('NON_EXISTENT_TEMPLATE_XYZ', {}, 'unknown-lang');
-      expect(unknownBoth.title).toBe('Carely');
-      expect(unknownBoth.body).toBe('New notification from Carely care system.');
+      expect(unknownBoth.title).toBe('Evernear');
+      expect(unknownBoth.body).toBe('New notification from Evernear care system.');
     });
 
     it('1.4 should handle extreme edge-case locales (empty, null, uppercase, regional tags, symbols)', () => {

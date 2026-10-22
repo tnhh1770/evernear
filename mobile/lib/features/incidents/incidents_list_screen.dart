@@ -2,20 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/i18n/app_localizations.dart';
-import '../../core/models/enums.dart';
 import '../../core/models/check_in_model.dart';
-import '../../core/models/relationship_model.dart';
+import '../../core/models/enums.dart';
 import '../../core/widgets/calm_empty_state.dart';
-import '../../core/widgets/calm_error_card.dart';
-import '../../core/widgets/calm_loading_widget.dart';
 import '../dashboard/dashboard_provider.dart';
-import 'incidents_provider.dart';
 import 'incident_detail_screen.dart';
+import 'incidents_provider.dart';
 
 class IncidentsListScreen extends StatefulWidget {
-  const IncidentsListScreen({super.key});
+  final bool isEmbedded;
+
+  const IncidentsListScreen({super.key, this.isEmbedded = false});
 
   @override
   State<IncidentsListScreen> createState() => _IncidentsListScreenState();
@@ -23,177 +21,337 @@ class IncidentsListScreen extends StatefulWidget {
 
 class _IncidentsListScreenState extends State<IncidentsListScreen> {
   static final DateFormat _dateFormat = DateFormat('HH:mm - dd/MM/yyyy');
-  int _selectedFilter = 0; // 0: All, 1: Peace of Mind, 2: Incidents
+  int _selectedFilter = 0; // 0: Tất cả, 1: An toàn, 2: Cảnh báo, 3: Xử lý
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<IncidentsProvider>(context, listen: false).fetchIncidents();
+      try {
+        Provider.of<IncidentsProvider>(context, listen: false).fetchIncidents();
+      } catch (_) {}
     });
   }
 
   String _getReasonLabel(IncidentReason reason, BuildContext context) {
     switch (reason) {
       case IncidentReason.MISSED_CHECK_IN:
-        return context.tr('incident_missed_check_in', fallback: AppStrings.incidentMissedCheckIn);
+        return context.tr('incident_missed_check_in');
       case IncidentReason.INACTIVITY:
       case IncidentReason.EXTENDED_INACTIVITY:
-        return context.tr('incident_extended_inactivity', fallback: AppStrings.incidentExtendedInactivity);
+        return context.tr('incident_extended_inactivity');
       case IncidentReason.DEVICE_OFFLINE:
       case IncidentReason.CRITICAL_BATTERY_INACTIVITY:
-        return context.tr('incident_device_offline', fallback: 'No activity confirmation received');
-      case IncidentReason.MANUAL_SOS:
-      case IncidentReason.MANUAL_TRIGGER:
-        return context.tr('incident_sos', fallback: 'Emergency SOS confirmation');
+        return context.tr('incident_device_offline');
     }
   }
 
-  Color _getStatusColor(IncidentStatus status) {
-    switch (status) {
-      case IncidentStatus.OPEN:
-      case IncidentStatus.TRIGGERED:
-        return AppColors.stateGracePeriod;
-      case IncidentStatus.ESCALATED:
-        return AppColors.stateAlertTriggered;
-      case IncidentStatus.ACKNOWLEDGED:
-        return AppColors.stateAcknowledged;
-      case IncidentStatus.RESOLVED:
-      case IncidentStatus.CANCELLED:
-      case IncidentStatus.FALSE_ALARM:
-        return AppColors.stateActive;
-    }
+  Widget _buildFilterChip(int index, String label) {
+    final isSelected = _selectedFilter == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFilter = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.cardBorder,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
   }
 
-  String _getStatusLabel(IncidentStatus status, BuildContext context) {
-    switch (status) {
-      case IncidentStatus.OPEN:
-      case IncidentStatus.TRIGGERED:
-        return context.tr('incident_status_pending', fallback: 'Awaiting response');
-      case IncidentStatus.ESCALATED:
-        return context.tr('incident_status_alerted', fallback: 'Alert dispatched');
-      case IncidentStatus.ACKNOWLEDGED:
-        return context.tr('incident_status_acknowledged', fallback: 'Acknowledged');
-      case IncidentStatus.RESOLVED:
-        return context.tr('incident_status_resolved', fallback: 'Resolved');
-      case IncidentStatus.CANCELLED:
-      case IncidentStatus.FALSE_ALARM:
-        return context.tr('incident_status_completed', fallback: 'Completed');
+  @override
+  Widget build(BuildContext context) {
+    IncidentsProvider? provider;
+    try {
+      provider = Provider.of<IncidentsProvider>(context);
+    } catch (_) {}
+    DashboardProvider? dashboard;
+    try {
+      dashboard = Provider.of<DashboardProvider>(context, listen: false);
+    } catch (_) {}
+
+    final allFeedItems =
+        provider?.allNotifications ?? const <NotificationFeedItem>[];
+    final List<NotificationFeedItem> liveItems;
+    if (_selectedFilter == 1) {
+      // An toàn: Check-ins & resolved incidents
+      liveItems = allFeedItems.where((item) {
+        if (item.type == NotificationFeedType.checkIn) return true;
+        if (item.incident != null) {
+          final s = item.incident!.status;
+          return s == IncidentStatus.RESOLVED ||
+              s == IncidentStatus.CANCELLED ||
+              s == IncidentStatus.FALSE_ALARM;
+        }
+        return false;
+      }).toList();
+    } else if (_selectedFilter == 2) {
+      // Cảnh báo: Active unresolved incidents (OPEN, TRIGGERED, ESCALATED)
+      liveItems = allFeedItems.where((item) {
+        if (item.incident != null) {
+          final s = item.incident!.status;
+          return s == IncidentStatus.OPEN ||
+              s == IncidentStatus.TRIGGERED ||
+              s == IncidentStatus.ESCALATED;
+        }
+        return false;
+      }).toList();
+    } else if (_selectedFilter == 3) {
+      // Xử lý: Acknowledged incidents (ACKNOWLEDGED)
+      liveItems = allFeedItems.where((item) {
+        if (item.incident != null) {
+          return item.incident!.status == IncidentStatus.ACKNOWLEDGED;
+        }
+        return false;
+      }).toList();
+    } else {
+      liveItems = allFeedItems;
     }
-  }
 
-  void _showCheckInDetailsDialog(BuildContext context, CheckInModel checkIn) {
-    final name = checkIn.displayName.isNotEmpty
-        ? checkIn.displayName
-        : context.tr('relationship_family_member', fallback: 'Người thân');
-    final dateStr = _dateFormat.format(checkIn.occurredAt.toLocal());
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppColors.stateActive.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.favorite_rounded,
-                  color: AppColors.stateActive,
-                  size: 36,
-                ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        automaticallyImplyLeading: !widget.isEmbedded,
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          context.tr('incidents_screen_title', fallback: 'Thông báo & sự kiện'),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        actions: [
+          if (provider != null)
+            IconButton(
+              tooltip: context.tr(
+                'incidents_clear_all_tooltip',
+                fallback: 'Xóa tất cả',
               ),
-              const SizedBox(height: 16),
-              Text(
-                context.tr('check_in_detail_title', fallback: AppStrings.checkInDetailTitle),
-                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+              key: const Key('clear_all_notifications_button'),
+              constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+              onPressed: () async {
+                final confirmed = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => const ClearNotificationsConfirmScreen(),
+                  ),
+                );
+                if (confirmed == true && provider != null) {
+                  await provider.clearAllNotifications();
+                  dashboard?.clearUnreadNotifications();
+                }
+              },
+              icon: const Icon(
+                Icons.delete_sweep_outlined,
+                size: 22,
+                color: AppColors.textPrimary,
               ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            ),
+          if (provider != null && provider.unreadCount > 0)
+            IconButton(
+              tooltip: context.tr('notifications_mark_all_read'),
+              constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+              onPressed: () async {
+                await provider!.markAllAsRead();
+                dashboard?.clearUnreadNotifications();
+              },
+              icon: const Icon(
+                Icons.done_all_rounded,
+                size: 20,
+                color: AppColors.primary,
+              ),
+            ),
+        ],
+      ),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async {
+          await provider?.fetchIncidents();
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              sliver: SliverToBoxAdapter(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
+                    // Filter chips row matching Screen 16 ("Tất cả", "An toàn", "Cảnh báo", "Xử lý")
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        const Icon(Icons.person_outline, size: 18, color: AppColors.textSecondary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        _buildFilterChip(
+                          0,
+                          context.tr(
+                            'incidents_filter_all',
+                            fallback: 'Tất cả',
+                          ),
+                        ),
+                        _buildFilterChip(
+                          1,
+                          context.tr(
+                            'incidents_filter_safe',
+                            fallback: 'An toàn',
+                          ),
+                        ),
+                        _buildFilterChip(
+                          2,
+                          context.tr(
+                            'incidents_filter_alert',
+                            fallback: 'Cảnh báo',
+                          ),
+                        ),
+                        _buildFilterChip(
+                          3,
+                          context.tr(
+                            'incidents_filter_handling',
+                            fallback: 'Xử lý',
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time_rounded, size: 18, color: AppColors.textSecondary),
-                        const SizedBox(width: 8),
-                        Text(dateStr, style: const TextStyle(fontSize: 14)),
-                      ],
-                    ),
-                    if (checkIn.batteryLevel != null) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.battery_std_rounded, size: 18, color: AppColors.textSecondary),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${checkIn.batteryLevel}%',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ],
+                    const SizedBox(height: 16),
+
+                    // Empty state when liveItems is empty
+                    if (liveItems.isEmpty)
+                      CalmEmptyState(
+                        icon: Icons.notifications_none_rounded,
+                        title: context.tr(
+                          'incident_empty_title',
+                          fallback: 'Không có thông báo hoặc sự cố',
+                        ),
+                        description: context.tr(
+                          'incident_empty_desc',
+                          fallback:
+                              'Mọi người thân đều đang bình an và không có cảnh báo nào.',
+                        ),
                       ),
-                    ],
-                    if (checkIn.note != null && checkIn.note!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AppColors.textSecondary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              checkIn.note!,
-                              style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: Text(
-                    context.tr('common_confirm', fallback: 'Đã hiểu'),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
+            ),
+
+            // Lazy virtualized SliverList for live notifications
+            if (liveItems.isNotEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 56),
+                sliver: SliverList.builder(
+                  itemCount: liveItems.length,
+                  itemBuilder: (context, index) {
+                    final item = liveItems[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Dismissible(
+                        key: Key('dismissible_${item.id}'),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          decoration: BoxDecoration(
+                            color: AppColors.danger,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        onDismissed: (_) async {
+                          final prov = provider;
+                          if (prov != null) {
+                            await prov.dismissNotification(item.id);
+                            if (prov.unreadCount == 0) {
+                              dashboard?.clearUnreadNotifications();
+                            } else {
+                              dashboard?.setUnreadNotificationsCount(
+                                prov.unreadCount,
+                              );
+                            }
+                          }
+                        },
+                        child: _buildLiveFeedItem(
+                          context,
+                          item,
+                          provider!,
+                          dashboard,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventCard({
+    required Widget leadingWidget,
+    required String title,
+    required String subtitle,
+    bool isAlert = false,
+    VoidCallback? onTap,
+  }) {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: isAlert ? const Color(0xFFFCECE9) : AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: isAlert ? const Color(0xFFF4CEC7) : AppColors.cardBorder,
+          width: 1.0,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              leadingWidget,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -203,459 +361,180 @@ class _IncidentsListScreenState extends State<IncidentsListScreen> {
     );
   }
 
-  Widget _buildFilterChip(int index, String label, IconData icon) {
-    final isSelected = _selectedFilter == index;
-    return ChoiceChip(
-      selected: isSelected,
-      onSelected: (_) => setState(() => _selectedFilter = index),
-      avatar: Icon(
-        icon,
-        size: 16,
-        color: isSelected ? Colors.white : AppColors.textSecondary,
-      ),
-      label: Text(label),
-      selectedColor: AppColors.primary,
-      backgroundColor: AppColors.surface,
-      labelStyle: TextStyle(
-        fontSize: 13,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-        color: isSelected ? Colors.white : AppColors.textPrimary,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isSelected ? AppColors.primary : Colors.grey.shade300,
+  Widget _buildLiveFeedItem(
+    BuildContext context,
+    NotificationFeedItem item,
+    IncidentsProvider provider,
+    DashboardProvider? dashboard,
+  ) {
+    if (item.type == NotificationFeedType.checkIn && item.checkIn != null) {
+      final CheckInModel checkIn = item.checkIn!;
+      final name = checkIn.displayName.isNotEmpty
+          ? checkIn.displayName
+          : context.tr('relationship_family_member', fallback: 'Người thân');
+      final dateStr = _dateFormat.format(checkIn.occurredAt.toLocal());
+      return _buildEventCard(
+        leadingWidget: Container(
+          width: 14,
+          height: 14,
+          decoration: const BoxDecoration(
+            color: AppColors.accent,
+            shape: BoxShape.circle,
+          ),
         ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-    );
+        title: context.tr(
+          'recent_activities_confirmed_safe',
+          args: {'name': name},
+          fallback: '$name đã xác nhận an toàn',
+        ),
+        subtitle: dateStr,
+      );
+    }
+
+    if (item.incident != null) {
+      final incident = item.incident!;
+      final dateStr = _dateFormat.format(incident.triggeredAt.toLocal());
+      final isResolved = incident.status == IncidentStatus.RESOLVED;
+      return _buildEventCard(
+        isAlert: !isResolved,
+        leadingWidget: Icon(
+          isResolved ? Icons.check_circle_rounded : Icons.warning_rounded,
+          color: isResolved ? AppColors.accent : AppColors.danger,
+          size: 20,
+        ),
+        title: _getReasonLabel(incident.reason, context),
+        subtitle: dateStr,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => IncidentDetailScreen(incident: incident),
+            ),
+          );
+        },
+      );
+    }
+
+    return const SizedBox.shrink();
   }
+}
+
+class ClearNotificationsConfirmScreen extends StatelessWidget {
+  const ClearNotificationsConfirmScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<IncidentsProvider>(context);
-
-    // Resolve visible list according to selected filter
-    final List<NotificationFeedItem> displayItems;
-    if (_selectedFilter == 1) {
-      displayItems = provider.incomingCheckIns
-          .map((c) => NotificationFeedItem.checkIn(c))
-          .toList();
-    } else if (_selectedFilter == 2) {
-      displayItems = provider.incidents
-          .map((i) => NotificationFeedItem.incident(i))
-          .toList();
-    } else {
-      displayItems = provider.allNotifications;
-    }
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          context.tr('notifications_title', fallback: AppStrings.notificationsTitle),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          if (provider.unreadCount > 0)
-            TextButton.icon(
-              onPressed: () async {
-                await provider.markAllAsRead();
-                if (context.mounted) {
-                  Provider.of<DashboardProvider>(context, listen: false)
-                      .setUnreadNotificationsCount(0);
-                }
-              },
-              icon: const Icon(Icons.done_all_rounded, size: 18, color: AppColors.primary),
-              label: Text(
-                context.tr('notifications_mark_all_read', fallback: AppStrings.notificationsMarkAllRead),
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-        ],
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.background,
         elevation: 0,
+        title: Text(
+          context.tr(
+            'incidents_clear_all_confirm_title',
+            fallback: 'Xóa tất cả thông báo?',
+          ),
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ),
-      body: provider.isLoading
-          ? CalmLoadingWidget(
-              message: context.tr('incident_loading', fallback: 'Đang tải thông báo...'),
-            )
-          : RefreshIndicator(
-              onRefresh: () => provider.fetchIncidents(),
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: [
-                          _buildFilterChip(
-                            0,
-                            context.tr('filter_all', fallback: AppStrings.filterAll),
-                            Icons.format_list_bulleted_rounded,
-                          ),
-                          _buildFilterChip(
-                            1,
-                            context.tr('filter_check_ins', fallback: AppStrings.filterCheckIns),
-                            Icons.favorite_rounded,
-                          ),
-                          _buildFilterChip(
-                            2,
-                            context.tr('filter_incidents', fallback: AppStrings.filterIncidents),
-                            Icons.warning_amber_rounded,
-                          ),
-                        ],
-                      ),
+      body: SafeArea(
+        minimum: const EdgeInsets.only(bottom: 24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 48),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.danger.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.delete_sweep_rounded,
+                      color: AppColors.danger,
+                      size: 32,
                     ),
                   ),
-                  if (provider.errorMessage != null)
-                    SliverToBoxAdapter(
-                      child: CalmErrorCard(
-                        message: provider.errorMessage!,
-                        onRetry: () => provider.fetchIncidents(),
-                      ),
-                    ),
-                  if (displayItems.isEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 60.0),
-                        child: CalmEmptyState(
-                          title: context.tr('incident_empty_title', fallback: AppStrings.calmEmptyIncidentsTitle),
-                          description: _selectedFilter == 1
-                              ? context.tr('notifications_empty_checkins', fallback: 'Chưa có lượt báo bình an nào.')
-                              : _selectedFilter == 2
-                                  ? context.tr('incident_empty_desc', fallback: AppStrings.calmEmptyIncidentsDesc)
-                                  : context.tr('notifications_empty_all', fallback: AppStrings.notificationsEmptyAll),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  context.tr(
+                    'incidents_clear_all_confirm_desc',
+                    fallback:
+                        'Tất cả thông báo và sự cố sẽ bị xóa khỏi danh sách. Bạn có chắc chắn muốn tiếp tục?',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: AppColors.textSecondary,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: AppColors.cardBorder),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          context.tr('common_cancel', fallback: 'Hủy'),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      sliver: SliverList.builder(
-                        itemCount: displayItems.length,
-                        itemBuilder: (ctx, index) {
-                          final item = displayItems[index];
-
-                          if (item.type == NotificationFeedType.checkIn && item.checkIn != null) {
-                            final checkIn = item.checkIn!;
-                            String name = checkIn.displayName;
-                            if (name.isEmpty) {
-                              final dashboard = Provider.of<DashboardProvider>(context, listen: false);
-                              final rel = dashboard.monitoredByMe.cast<RelationshipModel?>().firstWhere(
-                                    (r) => r?.monitoredUserId == checkIn.userId,
-                                    orElse: () => null,
-                                  );
-                              if (rel != null && rel.label != null && rel.label!.isNotEmpty) {
-                                name = rel.label!;
-                              } else if (rel?.monitoredUser?.fullName != null &&
-                                  rel!.monitoredUser!.fullName.isNotEmpty) {
-                                name = rel.monitoredUser!.fullName;
-                              } else {
-                                name = context.tr('relationship_family_member', fallback: 'Người thân');
-                              }
-                            }
-                            final dateStr = _dateFormat.format(checkIn.occurredAt.toLocal());
-                            final title = context.tr(
-                              'check_in_feed_title',
-                              args: {'name': name},
-                              fallback: 'Báo bình an: $name',
-                            );
-
-                            final subtitleParts = <String>[];
-                            subtitleParts.add(dateStr);
-                            if (checkIn.batteryLevel != null) {
-                              subtitleParts.add('Pin: ${checkIn.batteryLevel}%');
-                            }
-                            if (checkIn.note != null && checkIn.note!.isNotEmpty) {
-                              subtitleParts.add('"${checkIn.note}"');
-                            }
-
-                            final isUnread = !provider.isRead(item.id);
-
-                            return RepaintBoundary(
-                              child: Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  side: BorderSide(
-                                    color: isUnread
-                                        ? AppColors.primary.withValues(alpha: 0.6)
-                                        : AppColors.stateActive.withValues(alpha: 0.25),
-                                    width: isUnread ? 1.5 : 1,
-                                  ),
-                                ),
-                                color: AppColors.surface,
-                                elevation: 0,
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                  leading: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      CircleAvatar(
-                                        backgroundColor: AppColors.stateActive.withValues(alpha: 0.15),
-                                        child: const Icon(
-                                          Icons.favorite_rounded,
-                                          color: AppColors.stateActive,
-                                          size: 22,
-                                        ),
-                                      ),
-                                      if (isUnread)
-                                        Positioned(
-                                          top: 0,
-                                          right: 0,
-                                          child: Container(
-                                            width: 10,
-                                            height: 10,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.primary,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(color: Colors.white, width: 1.5),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  title: Text(
-                                    title,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  subtitle: Padding(
-                                    padding: const EdgeInsets.only(top: 4.0),
-                                    child: Text(
-                                      subtitleParts.join(' • '),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                  trailing: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.stateActive.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          context.tr('check_in_badge_peace', fallback: AppStrings.checkInBadgePeace),
-                                          style: const TextStyle(
-                                            color: AppColors.stateActive,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                      if (isUnread) ...[
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primaryLight,
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            context.tr('notification_unread_badge', fallback: AppStrings.notificationUnreadBadge),
-                                            style: const TextStyle(
-                                              color: AppColors.primary,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  onTap: () async {
-                                    if (isUnread) {
-                                      await provider.markAsRead(item.id);
-                                      if (context.mounted) {
-                                        Provider.of<DashboardProvider>(context, listen: false)
-                                            .setUnreadNotificationsCount(provider.unreadCount);
-                                      }
-                                    }
-                                    if (context.mounted) {
-                                      _showCheckInDetailsDialog(context, checkIn);
-                                    }
-                                  },
-                                  onLongPress: () => _showCheckInDetailsDialog(context, checkIn),
-                                ),
-                              ),
-                            );
-                          }
-
-                          // Incident Card
-                          final incident = item.incident!;
-                          final statusColor = _getStatusColor(incident.status);
-                          final dateStr = _dateFormat.format(incident.triggeredAt.toLocal());
-                          final isUnread = !provider.isRead(item.id);
-
-                          return RepaintBoundary(
-                            child: Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                side: BorderSide(
-                                  color: isUnread
-                                      ? AppColors.stateGracePeriod
-                                      : (incident.status == IncidentStatus.ESCALATED ||
-                                              incident.status == IncidentStatus.OPEN ||
-                                              incident.status == IncidentStatus.TRIGGERED
-                                          ? statusColor.withAlpha(100)
-                                          : Colors.transparent),
-                                  width: isUnread ? 1.5 : 1,
-                                ),
-                              ),
-                              color: AppColors.surface,
-                              elevation: 0,
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                leading: Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor: statusColor.withAlpha(30),
-                                      child: Icon(
-                                        incident.status == IncidentStatus.RESOLVED ||
-                                                incident.status == IncidentStatus.CANCELLED
-                                            ? Icons.check
-                                            : Icons.info_outline,
-                                        color: statusColor,
-                                      ),
-                                    ),
-                                    if (isUnread)
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: Container(
-                                          width: 10,
-                                          height: 10,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.stateGracePeriod,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(color: Colors.white, width: 1.5),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                title: Text(
-                                  _getReasonLabel(incident.reason, context),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      dateStr,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      context.tr(
-                                        'incident_risk_level',
-                                        args: {'score': '${incident.riskScore}'},
-                                        fallback: 'Risk Level: ${incident.riskScore}/100',
-                                      ),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                        color: incident.riskScore > 60
-                                            ? AppColors.stateGracePeriod
-                                            : AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                trailing: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: statusColor.withAlpha(30),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        _getStatusLabel(incident.status, context),
-                                        style: TextStyle(
-                                          color: statusColor,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                    if (isUnread) ...[
-                                      const SizedBox(height: 4),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.stateGracePeriod.withAlpha(40),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          context.tr('notification_unread_badge', fallback: AppStrings.notificationUnreadBadge),
-                                          style: const TextStyle(
-                                            color: AppColors.stateGracePeriod,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                onTap: () async {
-                                  if (isUnread) {
-                                    await provider.markAsRead(item.id);
-                                    if (context.mounted) {
-                                      Provider.of<DashboardProvider>(context, listen: false)
-                                          .setUnreadNotificationsCount(provider.unreadCount);
-                                    }
-                                  }
-                                  if (!context.mounted) return;
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => IncidentDetailScreen(incident: incident),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        },
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: TextButton.styleFrom(
+                          backgroundColor: AppColors.danger,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          context.tr(
+                            'incidents_clear_all_confirm_button',
+                            fallback: 'Xóa tất cả',
+                          ),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
+          ),
+        ),
+      ),
     );
   }
 }
+

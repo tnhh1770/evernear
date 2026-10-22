@@ -410,4 +410,82 @@ describe('Inactivity Threshold & Sleep/Quiet Hours E2E (Features 45 & 46)', () =
       expect(new Date(finalConfig[0].next_evaluation_at).getTime()).toBeGreaterThan(Date.now());
     });
   });
+
+  // =========================================================================
+  // 6. Guardian Monitoring Settings Permissions (Feature 2 / R1)
+  // =========================================================================
+  describe('Guardian Monitoring Settings Permissions (Feature 2 / R1)', () => {
+    it('should allow Guardian (monitor) to update relative thresholds and schedules when locationEnabled is unchanged', async () => {
+      // Guardian updates inactivityThresholdMinutes and checkInGraceMinutes, passing locationEnabled: false (same as existing)
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/monitoring/${relationship.id}/config`)
+        .set('Authorization', `Bearer ${monitor.accessToken}`)
+        .send({
+          inactivityThresholdMinutes: 240,
+          checkInGraceMinutes: 45,
+          locationEnabled: false,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.inactivityThresholdMinutes).toBe(240);
+      expect(res.body.checkInGraceMinutes).toBe(45);
+    });
+
+    it('should reject Guardian (monitor) with 403 Forbidden when attempting to alter locationEnabled', async () => {
+      // Guardian attempts to change locationEnabled from false to true
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/monitoring/${relationship.id}/config`)
+        .set('Authorization', `Bearer ${monitor.accessToken}`)
+        .send({
+          locationEnabled: true,
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain('Only the monitored user can grant or revoke location sharing permission');
+    });
+
+    it('should allow Monitored user to alter locationEnabled without 403', async () => {
+      // Monitored user toggles locationEnabled to true
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/monitoring/${relationship.id}/config`)
+        .set('Authorization', `Bearer ${monitored.accessToken}`)
+        .send({
+          locationEnabled: true,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.locationEnabled).toBe(true);
+
+      // Revert back to false
+      await request(app.getHttpServer())
+        .patch(`/api/v1/monitoring/${relationship.id}/config`)
+        .set('Authorization', `Bearer ${monitored.accessToken}`)
+        .send({ locationEnabled: false });
+    });
+
+    it('should freeze inactivity timer across quiet hours so morning evaluation does not trigger false check-in prompt', async () => {
+      // Configure active window 07:00-22:00 everyday with 180 min threshold (3 hours)
+      const allDaysWindows = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
+        dayOfWeek: day,
+        startTime: '07:00',
+        endTime: '22:00',
+        isEnabled: true,
+      }));
+
+      // Senior was active at 21:00 VN yesterday (1 hour before quiet hours 22:00).
+      // Now is 07:05 VN today (5 minutes after wake time 07:00).
+      // Wall-clock elapsed = 10 hours 5 minutes = 605 minutes.
+      // Active elapsed = 60m (21:00-22:00) + 5m (07:00-07:05) = 65m.
+      // 65m < 180m threshold -> config must remain ACTIVE!
+      const lastActive = new Date('2026-10-05T14:00:00Z'); // 21:00 VN Mon
+      const now = new Date('2026-10-06T00:05:00Z'); // 07:05 VN Tue
+      const activeMinutes = MonitoringScheduler.calculateActiveInactiveMinutes(
+        lastActive,
+        now,
+        allDaysWindows as any,
+        'Asia/Ho_Chi_Minh',
+      );
+      expect(activeMinutes).toBe(65);
+    });
+  });
 });

@@ -281,7 +281,7 @@ describe('Milestone 3: End-to-End System Synchronization (Live Sync, Offline Rep
       );
       expect(monitoredDeliveries.length).toBe(1);
       expect(monitoredDeliveries[0].template_name).toBe('CHECK_IN_PROMPT');
-      expect(monitoredDeliveries[0].payload.title).toContain('Carely — Bạn vẫn ổn chứ?');
+      expect(monitoredDeliveries[0].payload.title).toContain('Evernear — Bạn vẫn ổn chứ?');
       expect(monitoredDeliveries[0].payload.body).toContain(
         'Hệ thống chưa nhận thấy hoạt động mới trong khung giờ quy định. Chạm để xác nhận bạn vẫn ổn.',
       );
@@ -339,7 +339,7 @@ describe('Milestone 3: End-to-End System Synchronization (Live Sync, Offline Rep
         [monitorUser.id],
       );
       expect(guardianDeliveries.length).toBe(1);
-      expect(guardianDeliveries[0].payload.title).toContain('Carely — Thông báo chăm sóc');
+      expect(guardianDeliveries[0].payload.title).toContain('Evernear — Thông báo chăm sóc');
       expect(guardianDeliveries[0].payload.body).toContain('Chưa ghi nhận hoạt động hoặc phản hồi');
     });
 
@@ -385,7 +385,7 @@ describe('Milestone 3: End-to-End System Synchronization (Live Sync, Offline Rep
         [monitorUser.id],
       );
       expect(escDeliveries.length).toBe(1);
-      expect(escDeliveries[0].payload.title).toContain('Carely — Cần lưu ý');
+      expect(escDeliveries[0].payload.title).toContain('Evernear — Cần lưu ý');
     });
   });
 

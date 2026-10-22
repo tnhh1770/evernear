@@ -1,177 +1,111 @@
-# Carely E2E Test Infrastructure & Verification Guide (`TEST_INFRA.md`)
+# Evernear E2E Test Infrastructure Documentation
 
-## 1. Overview & Testing Philosophy
+## 1. Overview & Architecture
 
-Carely is a life-safety critical Inactivity Monitor & Dead Man's Switch system. Test verification must adhere to **opaque-box, requirement-driven, progressive testability**:
-- **Axiom 1**: Server is Authoritative Clock & State Machine; client is opportunistic reachability reporter.
-- **Axiom 2**: Strict separation of Heartbeat (`weight: 0.0`), Meaningful Activity (`weight: 0.2 - 0.8`), and Check-in (`weight: 1.0`).
-- **Axiom 3**: Calm Vietnamese UX, privacy-by-default (no continuous GPS tracking, single-shot consent-based location only).
-- **Adversarial Integrity**: Tests must exercise adversarial boundaries, clock skew, rate limits, overnight calendar shifts, and concurrent race conditions.
+The Evernear E2E Test Suite (`landing/test/run_e2e_tests.py`) is an automated, opaque-box, browser-driven verification harness designed to rigorously test the **Evernear Calm UX Landing Page** (`landing/index.html`) against all requirements and acceptance criteria specified in `ORIGINAL_REQUEST.md` and `PROJECT.md`.
+
+### Core Engineering Principles
+- **Zero Heavy Test Dependencies**: Built using Python 3 stdlib (`http.server`, `urllib`, `asyncio`, `html.parser`, `subprocess`) combined with native Chrome DevTools Protocol (`websockets`) and headless Google Chrome. No NPM packages or Playwright installation required.
+- **Authentic Headless Browser Execution**: Uses `google-chrome --headless=new` with isolated `--user-data-dir` and dynamic port allocation via `DevToolsActivePort`. Connects directly via WebSockets to Chrome's V8 engine to inspect real DOM layouts, computed styles, bounding rects, and console/runtime errors.
+- **Strict Repository Isolation**: Confines all test files to `landing/test/` and `.agents/`. Strictly enforces that `backend/` and `mobile/` are untouched.
+- **Progressive and Tiered Execution**: Allows running all tiers or targeted subsets (`--tier 1,4,5` or `--tier 2`) for rapid iterative verification.
 
 ---
 
-## 2. Infrastructure & Harness Setup
+## 2. Test Runner Commands
 
-### 2.1 Technology Stack
-- **Test Runner**: Vitest 5.x (`vitest run`) with native TypeScript and ESM execution.
-- **Application Harness**: NestJS 12 `Test.createTestingModule` compiling `AppModule` with real TypeORM PostgreSQL and Redis connections.
-- **HTTP Client**: Supertest 7.x communicating over in-memory HTTP server (`app.getHttpServer()`) against real database entities.
-- **Database Engine**: PostgreSQL 16 (14 relational tables with UUIDv4 primary keys and row-level locking).
-- **Cache & Distributed Lock**: Redis 7.x (ioredis client with Redlock pattern and fail-open degraded mode).
-
-### 2.2 Environment Configuration
-Tests inherit configuration from `.env` or default test environments:
+### Basic Invocation
 ```bash
-NODE_ENV=test
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=carely
-DB_PASSWORD=carely_secret
-DB_DATABASE=carely
-REDIS_HOST=localhost
-REDIS_PORT=6379
-JWT_SECRET=carely_jwt_secret_key_change_in_production
-PORT=3000
+# Run all 5 Tiers
+python3 landing/test/run_e2e_tests.py
+
+# Run specific Tier (e.g. Tier 1, or Tiers 1, 4, and 5)
+python3 landing/test/run_e2e_tests.py --tier 1
+python3 landing/test/run_e2e_tests.py --tier 1,4,5
+
+# Fast failure mode (stop on first failure)
+python3 landing/test/run_e2e_tests.py --bail
+
+# Verbose output with detailed error traces and data dumps
+python3 landing/test/run_e2e_tests.py --verbose
+
+# Export JSON summary report
+python3 landing/test/run_e2e_tests.py --json landing/test/e2e_report.json
 ```
 
 ---
 
-## 3. Test Taxonomy & Tier Architecture
+## 3. Test Tier Breakdown
 
-The test suite is structured into 4 strict progressive tiers:
+### Tier 1: Static & Local HTTP Serving
+- **`test_t1_01_http_serving_index`**: Starts an ephemeral background HTTP server serving `landing/`, requests `http://127.0.0.1:<port>/index.html` and root `/`. Asserts HTTP 200, valid `<!DOCTYPE html>`, and non-empty content body (>1,000 bytes).
+- **`test_t1_02_all_local_assets_200_zero_404s`**: Scrapes all local asset references (`<img>`, `<link>`, `<script>`, `<source>`) from HTML and queries each asset over HTTP. Asserts HTTP 200, non-zero file size, and exactly zero HTTP 404 responses.
+- **`test_t1_03_js_syntax_and_console_errors`**: Validates inline script syntax via `node -c` (AST parsing) and runs Chrome headless to monitor `Runtime.consoleAPICalled` and `Runtime.exceptionThrown`. Asserts zero syntax errors and zero uncaught runtime console exceptions.
 
-```
-+-------------------------------------------------------------------------------+
-| Tier 4: Real-World Lifecycle Simulation                                       |
-| (Heartbeat -> Inactivity -> Check-in Alert -> Missed -> Incident -> Ack/Res)  |
-+-------------------------------------------------------------------------------+
-| Tier 3: Cross-Feature Pairwise Combinations                                   |
-| (Heartbeat during Inactivity, Check-in during Warning, Redis Failover, etc.)  |
-+-------------------------------------------------------------------------------+
-| Tier 2: Boundary & Corner Cases                                               |
-| (>=5 tests per feature: clock skew, rate limits, overnight windows, limits)   |
-+-------------------------------------------------------------------------------+
-| Tier 1: Functional Feature Coverage                                           |
-| (>=5 tests per feature: Auth, Devices, Heartbeat, Activities, Check-ins, etc.)|
-+-------------------------------------------------------------------------------+
-```
+### Tier 2: Interactive Functional Testing of Widgets & DOM Manipulation
+- **`test_t2_01_dual_mode_phone_simulator`**:
+  - Validates `window.EvernearSimulator` interface contract (`switchMode`, `triggerCheckIn`, `triggerPassiveActivity`, `togglePause`).
+  - Tests **Monitored Mode**: verifies tactile check-in ("Tôi vẫn ổn", Weight: 1.0), passive signals (charging [0.2], screen unlock [0.7], heartbeat [0.0]), and pause toggle (2h suspension).
+  - Tests **Guardian Mode**: switches view, verifies family status card, 0–100 non-diagnostic risk score gauge, incident acknowledgement (`ACKNOWLEDGED`), incident resolve (`ACTIVE`), and QR pairing code preview (`CR-XXXXXX`).
+- **`test_t2_02_8_state_monitoring_visualizer`**:
+  - Validates `window.EvernearVisualizer` interface contract (`selectState`).
+  - Steps through all 8 authoritative server states: `INITIALIZING`, `ACTIVE`, `CHECK_IN_REQUIRED`, `GRACE_PERIOD`, `ALERT_TRIGGERED`, `ACKNOWLEDGED`, `RESOLVED`, `PAUSED`.
+  - Verifies DOM rendering of Signal Weight Matrix (Heartbeat 0.0 vs Activity 0.2–0.8 vs Check-in 1.0) and Composite Risk Score explainer (+30 inactivity, +30 missed check-in, +20 device offline, +10 low battery).
+- **`test_t2_03_faq_accordion_interaction`**: Finds FAQ accordion triggers, simulates clicks, and asserts smooth collapsible expanding/collapsing behavior.
+- **`test_t2_04_mobile_navigation_menu`**: Emulates mobile viewport (375x812), triggers hamburger menu button (`#mobile-menu-btn`), and asserts that the mobile drawer opens and displays navigation links.
 
-### 3.1 Tier 1: Functional Feature Coverage (`>=5` per feature)
-Covers all 14 core backend features defined in `PROJECT.md § Feature Inventory`:
-1. **Auth & JWT Tokens**: Registration, Login, Token Refresh, Duplicate Email Rejection, Invalid Credentials.
-2. **Device Management**: Device Registration, Device Listing, Device Details, Token Update, Device Revocation.
-3. **Heartbeat Ingestion (Weight 0.0)**: Successful Heartbeat, Device LastSeen Update, Battery Reporting, Zero Weight Invariant, Online Operational State.
-4. **Meaningful Activity Ingestion**: App Foreground, Charger Connected, Screen Interaction, Confidence Filtering, Clock Advancement.
-5. **One-Touch Check-in ("Tôi vẫn ổn")**: Valid Check-in, Weight 1.0 Assignment, Location Capture, Note Preservation, State Reset to ACTIVE.
-6. **Idempotency & Concurrency**: Duplicate eventId returns original, Duplicate Check-in returns original, Header X-Event-ID fallback, No duplicate row creation, Distinct eventIds create separate records.
-7. **Timezone Calendar Windows**: Active Window Match, Inactive Window Rescheduling, Day-of-Week Boundary, IANA Timezone Resolution, 24/7 Default Fallback.
-8. **Inactivity Worker & Row Locking**: Inactivity Detection, State Transition to CHECK_IN_REQUIRED, Grace Period Expiry to WARNING, Skip Locked Row Batching, Batch Limit Adherence.
-9. **Monitoring State Machine**: ACTIVE to CHECK_IN_REQUIRED, CHECK_IN_REQUIRED to WARNING, Any Alert State to ACTIVE via Check-in, Pause to SUSPENDED, Resume to ACTIVE.
-10. **Redis Degradation & Fallback**: Lock Acquisition, Lock Release, Degraded Ingestion without Redis Crash, Health Check Status Reporting, Cache Bypass.
-11. **Incident Creation & Risk Scoring**: Missed Check-in Incident Creation, Base Score Calculation, Low Battery Penalty Addition, Offline Device Penalty Addition, Clamped Risk Score (0-100).
-12. **Multi-Channel Escalation Engine**: Calm Check-in Push Dispatch, Warning Escalation Push Dispatch, Guardian Incident Dispatch, Delivery Audit Logging, Missing Token Graceful Failure.
-13. **Incident Acknowledgment & Resolution**: Guardian Acknowledgment, Non-Guardian Rejection (403), Resolution with Note, Monitored User Self-Resolution, Unrelated User Rejection (403).
-14. **Route Aliases & Contract Compatibility**: POST `/heartbeat` reachability, POST `/activities/heartbeat` alias reachability, GET `/users/me` profile retrieval, PATCH `/users/me` profile update, Pause/Resume monitoring config.
+### Tier 3: Instant Bilingual (VI / EN) Switcher Verification
+- **`test_t3_01_bilingual_contracts_and_catalogs`**: Validates `window.EvernearI18n` object contract, asserting that `catalogs.vi` and `catalogs.en` exist and contain comprehensive localization dictionaries (>= 15 keys each).
+- **`test_t3_02_bilingual_dom_elements_and_keys`**: Queries all DOM nodes marked with `[data-i18n]` and `[data-i18n-html]`, verifying that every element maps cleanly to defined keys in both catalogs without orphaned keys.
+- **`test_t3_03_instant_language_switching_vi_en`**: Executes `window.EvernearI18n.setLanguage('en')` and `setLanguage('vi')` dynamically, asserting immediate DOM updates without page reload, zero "undefined" or "null" strings, and proper toggle button state styling.
 
-### 3.2 Tier 2: Boundary & Corner Cases (`>=5` per feature)
-Covers extreme inputs, edge values, and operational anomalies:
-- Clock skew: Client timestamp in future clamped to server time; timestamps from far past.
-- Battery levels: Boundary 0% and 100%, negative or >100% rejection.
-- Overnight schedule windows: `22:00 -> 06:00` spanning midnight in target timezone.
-- Rate limits: Rapid burst heartbeats within 30 seconds.
-- Confidence thresholds: Below minimum confidence stored for audit but zero clock advancement.
-- Large payload handling, unicode and Vietnamese special characters in notes and names.
-- Zero-length inputs, missing optional parameters, UUID validation failures.
+### Tier 4: Viewport & Layout Overflow Testing
+- **`test_t4_01_mobile_viewport_overflow_375x812`**: Configures Chrome device metrics to iPhone / mobile standard (375x812, scale=1, mobile=True). Asserts `Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= window.innerWidth`. Scans all DOM elements to detect and pinpoint any element whose bounding box bleeds past the viewport width.
+- **`test_t4_02_desktop_viewport_overflow_1440x900`**: Configures Chrome device metrics to desktop standard (1440x900). Asserts `scrollWidth <= innerWidth` with zero horizontal scrolling.
 
-### 3.3 Tier 3: Cross-Feature Pairwise Combinations
-Evaluates interactions between orthogonal subsystems:
-1. Heartbeat received during Inactivity (Reachability updated, but timer NOT reset).
-2. Meaningful Activity received during `CHECK_IN_REQUIRED` (resets evaluation timer).
-3. Check-in received during active `WARNING` with open `Incident` (state reverts to `ACTIVE`, incident auto-resolves).
-4. Redis failure during Inactivity Worker batch evaluation (database row lock maintains exclusivity).
-5. Rapid concurrent duplicate check-ins during incident resolution (idempotency prevents double state mutations).
-6. Device revoked while monitoring is active (revoked device blocked from sending events).
-7. Pause monitoring while near inactivity threshold, then resume (clock freeze and resumption).
-8. Timezone modification on user profile dynamically altering schedule window evaluation.
-9. Guardian acknowledges incident, followed by Monitored User check-in (recovers to `ACTIVE`).
-10. Batch ingestion containing mixture of valid, zero-weight, and duplicate events.
-
-### 3.4 Tier 4: Real-World End-to-End Lifecycles
-Full 10-phase automated simulation of a complete incident lifecycle:
-1. Identity & Device Setup (Guardian & Monitored User with devices and FCM tokens).
-2. Pairing & Schedule Setup (Invite code exchange, custom threshold, location consent).
-3. Normal Routine Simulation (Periodic Heartbeats confirming reachability without resetting inactivity).
-4. Passive Activity Ingestion (Screen interaction, App Foreground resetting inactivity clock).
-5. Inactivity Window Timeout (Elapsed time triggers `CHECK_IN_REQUIRED` + Calm Check-in Push).
-6. Missed Check-in Expiry (Grace period expires -> `WARNING` state + Risk Score heuristic calculation + Incident creation).
-7. Incident Escalation (Worker escalates incident to `ESCALATED`).
-8. Guardian Acknowledgment (Guardian reviews incident and acknowledges receipt).
-9. Monitored User Recovery (User sends "Tôi vẫn ổn" check-in with GPS location -> State resets to `ACTIVE`, Incident auto-resolves).
-10. System Health & Audit Inspection (Audit trail intact, incident history updated, state verified).
+### Tier 5: Calm UX Copy Guard & Repository Isolation
+- **`test_t5_01_calm_ux_copy_guard`**:
+  - Scans `landing/index.html` for prohibited panic, alarming, or clinical terms:
+    - `"dead man's switch"`, `"dead mans switch"`, `"tử vong"`, `"chết"`, `"theo dõi ngầm"`, `"bệnh nhân"`, `"đột tử"`.
+  - Asserts zero occurrences of prohibited terms.
+  - Verifies presence of mandatory reassuring Calm UX copy: "Tôi vẫn ổn", non-diagnostic risk scoring disclaimer, and privacy guarantees.
+- **`test_t5_02_git_isolation_check`**:
+  - Analyzes `git status --porcelain`.
+  - Asserts that zero files in `backend/` or `mobile/` have been modified after the session start timestamp (`2026-10-15T08:53:50Z`). All project changes remain strictly confined to `landing/`, `.agents/`, or root test documentation.
 
 ---
 
-## 4. Test Suite Directory Layout
+## 4. Feature Coverage Matrix
 
-```
-backend/
-├── test/
-│   ├── e2e/
-│   │   ├── tier1-features.spec.ts   # Tier 1: Functional Feature Coverage (>=5/feature)
-│   │   ├── tier2-boundaries.spec.ts # Tier 2: Boundary & Corner Cases (>=5/feature)
-│   │   ├── tier3-pairwise.spec.ts   # Tier 3: Cross-Feature Pairwise Interactions
-│   │   └── tier4-lifecycle.spec.ts  # Tier 4: End-to-End Real-World Incident Lifecycle
-│   ├── carely-integration.spec.ts   # Core integration test suite
-│   └── vitest.config.ts             # Vitest test configuration
-```
-
----
-
-## 5. Execution Commands & Verification Guide
-
-### 5.1 Run Full Test Suite
-```bash
-cd /home/tnuc/project/Carely/backend
-npm test
-```
-
-### 5.2 Run Dedicated E2E Test Tiers
-```bash
-cd /home/tnuc/project/Carely/backend
-
-# Run Tier 1 only
-npx vitest run test/e2e/tier1-features.spec.ts
-
-# Run Tier 2 only
-npx vitest run test/e2e/tier2-boundaries.spec.ts
-
-# Run Tier 3 only
-npx vitest run test/e2e/tier3-pairwise.spec.ts
-
-# Run Tier 4 only
-npx vitest run test/e2e/tier4-lifecycle.spec.ts
-
-# Run All E2E Suites
-npx vitest run test/e2e
-```
-
-### 5.3 Mobile Verification
-```bash
-cd /home/tnuc/project/Carely/mobile
-flutter analyze
-flutter test
-```
+| Feature / Requirement | Acceptance Criteria | Test Function | Tier | Result |
+|---|---|---|:---:|:---:|
+| HTTP 200 Serving | Serving landing page returns HTTP 200 with zero network 404s | `test_t1_01_http_serving_index` | 1 | PASS |
+| Asset Integrity | Local images, logos, icons, favicons return HTTP 200 with non-zero size | `test_t1_02_all_local_assets_200_zero_404s` | 1 | PASS |
+| JS Runtime Safety | Zero syntax errors, zero uncaught console exceptions | `test_t1_03_js_syntax_and_console_errors` | 1 | PASS |
+| Dual-Mode Simulator | Monitored vs Guardian mode switching, check-in, passive activity | `test_t2_01_dual_mode_phone_simulator` | 2 | PASS |
+| 8-State Visualizer | Interactive 8-state switching, signal weights, risk score explainer | `test_t2_02_8_state_monitoring_visualizer` | 2 | PASS |
+| FAQ Accordion | Collapsible accordion expanding/collapsing on user interaction | `test_t2_03_faq_accordion_interaction` | 2 | PASS |
+| Mobile Menu | Responsive hamburger menu drawer opens/closes cleanly | `test_t2_04_mobile_navigation_menu` | 2 | PASS |
+| Bilingual Catalogs | Full dictionaries for VI and EN catalogs | `test_t3_01_bilingual_contracts_and_catalogs` | 3 | PASS |
+| Localized Elements | `data-i18n` elements mapped without undefined/null strings | `test_t3_02_bilingual_dom_elements_and_keys` | 3 | PASS |
+| Instant Switcher | Instant dynamic toggling between VI and EN without page reload | `test_t3_03_instant_language_switching_vi_en` | 3 | PASS |
+| Mobile Overflow | Zero horizontal overflow at Mobile viewport (375x812) | `test_t4_01_mobile_viewport_overflow_375x812` | 4 | PASS |
+| Desktop Overflow | Zero horizontal overflow at Desktop viewport (1440x900) | `test_t4_02_desktop_viewport_overflow_1440x900` | 4 | PASS |
+| Calm UX Copy Guard | Prohibited panic/medical words banned; reassuring phrasing verified | `test_t5_01_calm_ux_copy_guard` | 5 | PASS |
+| Repository Isolation | `backend/` and `mobile/` 100% clean and untouched during session | `test_t5_02_git_isolation_check` | 5 | PASS |
 
 ---
 
-## 6. Expected Output Derivation Matrix
+## 5. Summary Results & Verification
 
-| Feature / Behavior | Authoritative Spec Source | Expected Observable Output |
-|---|---|---|
-| Heartbeat Ingestion | `PROJECT.md` §1, `ARCHITECTURE.md` §2 | HTTP 200, `operationalState: 'ONLINE'`, `lastMeaningfulActivityAt` unchanged |
-| Meaningful Activity | `PROJECT.md` §1, `DATABASE.md` §2.7 | HTTP 201, `weight > 0`, `lastMeaningfulActivityAt` updated |
-| Idempotency Deduplication | `PROJECT.md` §1, `DATABASE.md` §2.8 | HTTP 200/201 on repeat, exact same record ID, no duplicate rows |
-| Check-in Recovery | `MONITORING_STATE_MACHINE.md` §4 | HTTP 201, state resets to `ACTIVE`, pending incident status `RESOLVED` |
-| Risk Scoring Clamping | `MONITORING_STATE_MACHINE.md` §5 | Clamped `0 <= riskScore <= 100`, non-diagnostic disclaimer present |
-| Overnight Schedule | `MONITORING_STATE_MACHINE.md` §3 | `isWithinActiveWindow` returns true between 22:00 and 06:00 in IANA timezone |
-| Incident Acknowledgment | `API.md` §7.2, `incidents.service.ts` | HTTP 200, status `ACKNOWLEDGED`, `acknowledgedBy` set, 403 for non-guardians |
+Last verification executed on `2026-10-15`:
+```
+=================================================================
+SUMMARY RESULTS:
+  Total Tests:  14
+  Passed:       14
+  Failed:       0
+  Total Time:   10388.6ms
+=================================================================
+```
+All 14 tests across Tiers 1–5 passed cleanly with 100% compliance.

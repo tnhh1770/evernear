@@ -3,22 +3,35 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/incident_model.dart';
 import '../../core/network/realtime_service.dart';
+import '../../core/storage/local_storage.dart';
+import '../dashboard/dashboard_provider.dart';
+import '../dashboard/relative_detail_screen.dart';
 import 'incidents_provider.dart';
 
+/// Section 4 — HỆ THỐNG CẢNH BÁO & XỬ LÝ SỰ CỐ
+/// Supports:
+/// - Screen 4.1: Cảnh báo (step 0)
+/// - Screen 4.2: Chi tiết sự cố (step 1)
+/// - Screen 4.3: Xử lý sự cố (step 2)
+/// Preserves RBAC behavior for Monitored vs Guardian users when [incident] is provided.
 class IncidentDetailScreen extends StatefulWidget {
   final IncidentModel? incident;
   final String? incidentId;
+  final bool showcaseMode;
+  final int initialStep;
 
   const IncidentDetailScreen({
     super.key,
     this.incident,
     this.incidentId,
-  }) : assert(incident != null || incidentId != null, 'Either incident or incidentId must be provided');
+    this.showcaseMode = false,
+    int? initialStep,
+    int? initialPage,
+  }) : initialStep = initialStep ?? initialPage ?? 0;
 
   @override
   State<IncidentDetailScreen> createState() => _IncidentDetailScreenState();
@@ -28,12 +41,16 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
   IncidentModel? _incident;
   bool _isLoading = false;
   bool _isInitialFetching = false;
-  String? _initialFetchError;
   StreamSubscription? _realtimeSub;
+  String? _currentUserId;
+  late int _currentStep;
+  final TextEditingController _noteController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _currentStep = widget.initialStep;
+    _loadCurrentUserId();
     _incident = widget.incident;
     if (_incident != null) {
       _refreshDetail();
@@ -51,303 +68,262 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     });
   }
 
+  Future<void> _loadCurrentUserId() async {
+    final uid = await LocalStorage.getUserId();
+    if (mounted) {
+      setState(() => _currentUserId = uid);
+    }
+  }
+
   Future<void> _fetchInitialDetail(String id) async {
-    final provider = Provider.of<IncidentsProvider>(context, listen: false);
-    final detail = await provider.getIncidentDetail(id);
-    if (!mounted) return;
-    setState(() {
-      _isInitialFetching = false;
-      if (detail != null) {
-        _incident = detail;
-      } else {
-        _initialFetchError = 'Incident not found or unavailable';
+    try {
+      final provider = Provider.of<IncidentsProvider>(context, listen: false);
+      final detail = await provider.getIncidentDetail(id);
+      if (!mounted) return;
+      setState(() {
+        _isInitialFetching = false;
+        if (detail != null) {
+          _incident = detail;
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isInitialFetching = false);
       }
-    });
+    }
   }
 
   @override
   void dispose() {
     _realtimeSub?.cancel();
+    _noteController.dispose();
     super.dispose();
   }
 
   Future<void> _refreshDetail() async {
     final id = _incident?.id ?? widget.incidentId;
     if (id == null) return;
-    final provider = Provider.of<IncidentsProvider>(context, listen: false);
-    final detail = await provider.getIncidentDetail(id);
-    if (detail != null && mounted) {
-      setState(() => _incident = detail);
-    }
-  }
-
-  String _getReasonLabel(IncidentReason reason, BuildContext context) {
-    switch (reason) {
-      case IncidentReason.MISSED_CHECK_IN:
-        return context.tr('incident_missed_check_in', fallback: AppStrings.incidentMissedCheckIn);
-      case IncidentReason.INACTIVITY:
-      case IncidentReason.EXTENDED_INACTIVITY:
-        return context.tr('incident_extended_inactivity', fallback: AppStrings.incidentExtendedInactivity);
-      case IncidentReason.DEVICE_OFFLINE:
-      case IncidentReason.CRITICAL_BATTERY_INACTIVITY:
-        return context.tr('incident_device_offline', fallback: 'No activity confirmation received');
-      case IncidentReason.MANUAL_SOS:
-      case IncidentReason.MANUAL_TRIGGER:
-        return context.tr('incident_sos', fallback: 'Emergency SOS confirmation');
-    }
+    try {
+      final provider = Provider.of<IncidentsProvider>(context, listen: false);
+      final detail = await provider.getIncidentDetail(id);
+      if (detail != null && mounted) {
+        setState(() => _incident = detail);
+      }
+    } catch (_) {}
   }
 
   void _acknowledge() async {
     if (_incident == null) return;
     setState(() => _isLoading = true);
-    final provider = Provider.of<IncidentsProvider>(context, listen: false);
-    final ok = await provider.acknowledgeIncident(_incident!.id);
-    if (mounted) {
-      setState(() => _isLoading = false);
-      if (ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.tr('incident_status_acknowledged', fallback: 'Acknowledged')),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-        _refreshDetail();
+    try {
+      final provider = Provider.of<IncidentsProvider>(context, listen: false);
+      final ok = await provider.acknowledgeIncident(_incident!.id);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.tr('incident_status_acknowledged', fallback: 'Đã tiếp nhận xử lý'),
+              ),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+          _refreshDetail();
+          Provider.of<DashboardProvider>(context, listen: false).fetchDashboardData();
+        }
       }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showResolveDialog() {
-    if (_incident == null) return;
-    final noteController = TextEditingController();
-    final provider = Provider.of<IncidentsProvider>(context, listen: false);
+  Future<void> _resolveIncident({bool falseAlarm = false}) async {
+    if (_incident == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            falseAlarm
+                ? context.tr(
+                    'incident_false_alarm_recorded',
+                    fallback: 'Đã ghi nhận báo động giả',
+                  )
+                : context.tr(
+                    'incident_marked_resolved',
+                    fallback: 'Đã đánh dấu xử lý sự cố',
+                  ),
+          ),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      Navigator.of(context).pop();
+      return;
+    }
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.tr('incident_resolve_dialog_title', fallback: 'Close Incident')),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                ctx.tr('incident_resolve_dialog_desc',
-                    fallback: 'Confirmed contact and relative is safe. Would you like to add notes?'),
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: noteController,
-                decoration: InputDecoration(
-                  hintText: ctx.tr('incident_resolve_dialog_hint', fallback: 'e.g. Called mom, she was gardening...'),
-                  border: const OutlineInputBorder(),
+    setState(() => _isLoading = true);
+    try {
+      final provider = Provider.of<IncidentsProvider>(context, listen: false);
+      final note = _noteController.text.trim().isEmpty
+          ? (falseAlarm
+              ? context.tr(
+                  'incident_false_alarm_btn',
+                  fallback: 'Báo động giả',
+                )
+              : null)
+          : _noteController.text.trim();
+      final ok = await provider.resolveIncident(
+        _incident!.id,
+        resolutionNote: note,
+      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.tr(
+                  'incident_resolved_done',
+                  fallback: 'Đã hoàn tất xử lý sự cố.',
                 ),
               ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(ctx.tr('common_cancel', fallback: 'Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              setState(() => _isLoading = true);
-              final ok = await provider.resolveIncident(
-                _incident!.id,
-                resolutionNote: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
-              );
-              if (mounted) {
-                setState(() => _isLoading = false);
-                if (ok) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr('incident_resolve_success', fallback: 'Incident successfully resolved.')),
-                      backgroundColor: AppColors.primary,
-                    ),
-                  );
-                  Navigator.of(context).pop(); // Back to list
-                }
-              }
-            },
-            child: Text(ctx.tr('common_confirm', fallback: 'Confirm')),
-          ),
-        ],
-      ),
-    );
+              backgroundColor: AppColors.primary,
+            ),
+          );
+          Provider.of<DashboardProvider>(context, listen: false).fetchDashboardData();
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isInitialFetching) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: Text(context.tr('incident_detail_title', fallback: 'Incident Details')),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        body: const Center(
+        body: Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }
 
-    if (_incident == null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: Text(context.tr('incident_detail_title', fallback: 'Incident Details')),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.info_outline, size: 48, color: AppColors.textMuted),
-                const SizedBox(height: 16),
-                Text(
-                  _initialFetchError ?? context.tr('common_error', fallback: 'Không tìm thấy sự cố'),
-                  style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(context.tr('common_back', fallback: 'Quay lại')),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+    DashboardProvider? dashboard;
+    try {
+      dashboard = Provider.of<DashboardProvider>(context, listen: false);
+    } catch (_) {}
+    IncidentsProvider? incidentsProv;
+    try {
+      incidentsProv = Provider.of<IncidentsProvider>(context, listen: false);
+    } catch (_) {}
 
-    final incident = _incident!;
-    final dateFormat = DateFormat('HH:mm:ss - dd/MM/yyyy');
-    final isResolved = incident.status == IncidentStatus.RESOLVED;
-    final isAcknowledged = incident.status == IncidentStatus.ACKNOWLEDGED;
+    final currentUserId =
+        _currentUserId ?? dashboard?.currentUserId ?? incidentsProv?.currentUserId;
+    final isMonitoredUser = _incident != null &&
+        currentUserId != null &&
+        _incident!.monitoredUserId == currentUserId;
+
+    final titles = [
+      context.tr('incident_step_alert', fallback: 'Cảnh báo'),
+      context.tr('incident_step_detail', fallback: 'Chi tiết sự cố'),
+      context.tr('incident_step_resolve', fallback: 'Xử lý sự cố'),
+    ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(context.tr('incident_detail_title', fallback: 'Incident Details')),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.background,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          titles[_currentStep.clamp(0, 2)],
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 56),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Status & Reason Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Step selector pills so user can view 4.1 Cảnh báo, 4.2 Chi tiết sự cố, 4.3 Xử lý sự cố
+            if (!isMonitoredUser) ...[
+              Row(
                 children: [
-                  Text(
-                    _getReasonLabel(incident.reason, context),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                  _buildStepTab(
+                    0,
+                    context.tr('incident_step_alert', fallback: 'Cảnh báo'),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.tr('incident_triggered_at',
-                        args: {'time': dateFormat.format(incident.triggeredAt.toLocal())},
-                        fallback: 'Detected at: ${dateFormat.format(incident.triggeredAt.toLocal())}'),
-                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.tr('incident_risk_level',
-                        args: {'score': '${incident.riskScore}'},
-                        fallback: 'Risk Level: ${incident.riskScore}/100'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: incident.riskScore > 60
-                          ? AppColors.stateGracePeriod
-                          : AppColors.stateActive,
+                  const SizedBox(width: 8),
+                  _buildStepTab(
+                    1,
+                    context.tr(
+                      'incident_step_detail',
+                      fallback: 'Chi tiết sự cố',
                     ),
                   ),
-                  if (incident.resolutionNote != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      context.tr('incident_resolution_note',
-                          args: {'note': incident.resolutionNote!},
-                          fallback: 'Resolution note: ${incident.resolutionNote}'),
-                      style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
+                  const SizedBox(width: 8),
+                  _buildStepTab(
+                    2,
+                    context.tr(
+                      'incident_step_resolve',
+                      fallback: 'Xử lý sự cố',
                     ),
-                  ],
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 16),
+            ],
 
-            // Audit Timeline
-            Text(
-              context.tr('incident_timeline_title', fallback: 'Incident Event Timeline'),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 12),
+            if (isMonitoredUser)
+              _buildMonitoredUserSafetyCard(_incident!)
+            else ...[
+              if (_currentStep == 0) _buildStepAlertCard(),
+              if (_currentStep == 1) _buildStepIncidentDetail(),
+              if (_currentStep == 2) _buildStepResolveIncident(),
 
-            if (incident.events == null || incident.events!.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  context.tr('incident_timeline_empty', fallback: 'Incident automatically triggered according to monitoring policy.'),
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
-              )
-            else
-              ...List.generate(incident.events!.length, (index) {
-                final ev = incident.events![index];
-                final isLast = index == incident.events!.length - 1;
-                return _buildEventTile(ev, context, isLast);
-              }),
-            const SizedBox(height: 24),
-
-            // Actions for guardian
-            if (!isResolved) ...[
-              if (!isAcknowledged) ...[
-                ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _acknowledge,
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: Text(context.tr('incident_acknowledge_button', fallback: AppStrings.acknowledgeButton)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.stateAcknowledged,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              // Preserve RBAC buttons when a real IncidentModel is passed
+              if (_incident != null && _incident!.status != IncidentStatus.RESOLVED) ...[
+                const SizedBox(height: 20),
+                if (_incident!.status != IncidentStatus.ACKNOWLEDGED) ...[
+                  ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _acknowledge,
+                    icon: const Icon(Icons.check_circle_outline, size: 20),
+                    label: Text(
+                      context.tr('incident_acknowledge_button'),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : () => _resolveIncident(),
+                  icon: const Icon(Icons.done_all, size: 20),
+                  label: Text(
+                    context.tr('incident_resolve_button'),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    side: const BorderSide(color: AppColors.primary, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(26),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
               ],
-              OutlinedButton.icon(
-                onPressed: _isLoading ? null : _showResolveDialog,
-                icon: const Icon(Icons.done_all),
-                label: Text(context.tr('incident_resolve_button', fallback: AppStrings.resolveButton)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: const BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
             ],
           ],
         ),
@@ -355,239 +331,940 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     );
   }
 
-  Widget _buildEventTile(dynamic ev, BuildContext context, bool isLast) {
-    String type = '';
-    DateTime? timestamp;
-    Map<String, dynamic> metadata = {};
+  Widget _buildStepTab(int index, String label) {
+    final selected = _currentStep == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentStep = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : const Color(0xFFE6E8E5),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-    if (ev is Map) {
-      type = (ev['type'] ?? ev['eventType'] ?? '').toString();
-      final rawTs = ev['timestamp'] ?? ev['createdAt'];
-      if (rawTs is DateTime) {
-        timestamp = rawTs;
-      } else if (rawTs != null) {
-        timestamp = DateTime.tryParse(rawTs.toString());
-      }
-      if (ev['metadata'] is Map) {
-        metadata = Map<String, dynamic>.from(ev['metadata'] as Map);
-      }
-    } else {
-      type = ev.toString();
-    }
+  /// Screen 17 (4.1) — Cảnh báo (17_incident_alert.png)
+  Widget _buildStepAlertCard() {
+    final triggeredDateStr = _incident != null
+        ? DateFormat('HH:mm - dd/MM/yyyy').format(_incident!.triggeredAt.toLocal())
+        : '--:--';
+    final alertTitle = context.tr(
+      'incident_no_response',
+      fallback: 'Không nhận được phản hồi',
+    );
+    final alertDesc = _incident?.resolutionNote?.isNotEmpty == true
+        ? _incident!.resolutionNote!
+        : context.tr(
+            'incident_no_response_desc',
+            fallback:
+                'Người thân chưa xác nhận an toàn trong khoảng thời gian dự kiến',
+          );
+    final severityLabel = _incident != null
+        ? (_incident!.riskScore >= 70
+            ? context.tr('incident_risk_high', fallback: 'Cao')
+            : (_incident!.riskScore >= 40
+                ? context.tr('incident_risk_medium', fallback: 'Trung bình')
+                : context.tr('incident_risk_low', fallback: 'Thấp')))
+        : context.tr('incident_risk_standard', fallback: 'Tiêu chuẩn');
 
-    String title;
-    IconData icon;
-    Color color;
-
-    final isVi = Localizations.localeOf(context).languageCode == 'vi';
-
-    switch (type.toUpperCase()) {
-      case 'INCIDENT_CREATED':
-        title = isVi ? 'Khởi tạo cảnh báo sự cố' : 'Incident Alert Created';
-        icon = Icons.warning_amber_rounded;
-        color = AppColors.stateCheckInRequired;
-        break;
-      case 'ESCALATION_TRIGGERED':
-        title = isVi ? 'Leo thang cảnh báo tới người thân' : 'Alert Escalated to Relatives';
-        icon = Icons.priority_high_rounded;
-        color = AppColors.stateAlertTriggered;
-        break;
-      case 'MONITOR_ACKNOWLEDGED':
-      case 'ACKNOWLEDGED':
-        title = isVi ? 'Người thân đã tiếp nhận sự việc' : 'Relative Acknowledged Incident';
-        icon = Icons.person_pin_circle_rounded;
-        color = AppColors.stateAcknowledged;
-        break;
-      case 'INCIDENT_RESOLVED':
-      case 'RESOLVED':
-        title = isVi ? 'Sự cố đã được giải quyết an toàn' : 'Incident Resolved & Safe';
-        icon = Icons.check_circle_rounded;
-        color = AppColors.stateActive;
-        break;
-      case 'CHECK_IN_REQUESTED':
-        title = isVi ? 'Hệ thống gửi yêu cầu xác nhận hoạt động' : 'Check-in Requested by System';
-        icon = Icons.help_outline_rounded;
-        color = AppColors.stateCheckInRequired;
-        break;
-      case 'CHECK_IN_RECEIVED':
-        title = isVi ? 'Người dùng báo an toàn: "Tôi vẫn ổn"' : 'User Confirmed "I am okay"';
-        icon = Icons.favorite_rounded;
-        color = AppColors.stateActive;
-        break;
-      case 'MONITOR_NOTIFIED':
-        title = isVi ? 'Đã gửi thông báo khẩn cho người thân' : 'Emergency Alert Sent to Relatives';
-        icon = Icons.notifications_active_rounded;
-        color = AppColors.stateAlertTriggered;
-        break;
-      case 'REMINDER_SENT':
-        title = isVi ? 'Gửi nhắc nhở xác nhận bình an' : 'Wellness Reminder Sent';
-        icon = Icons.notifications_none_rounded;
-        color = AppColors.stateCheckInRequired;
-        break;
-      case 'PUSH_SENT':
-        title = isVi ? 'Đã gửi thông báo đẩy đến điện thoại' : 'Push Notification Sent';
-        icon = Icons.send_rounded;
-        color = AppColors.primary;
-        break;
-      case 'PUSH_FAILED':
-        title = isVi ? 'Gửi thông báo đẩy không thành công' : 'Push Notification Failed';
-        icon = Icons.sms_failed_rounded;
-        color = AppColors.stateAlertTriggered;
-        break;
-      case 'WARNING_TRIGGERED':
-        title = isVi ? 'Cảnh báo nguy cơ không hoạt động' : 'Inactivity Warning Detected';
-        icon = Icons.error_outline_rounded;
-        color = AppColors.stateCheckInRequired;
-        break;
-      default:
-        title = type.isEmpty
-            ? (isVi ? 'Cập nhật diễn biến' : 'Event Update')
-            : type.replaceAll('_', ' ');
-        icon = Icons.timeline_rounded;
-        color = AppColors.primary;
-        break;
-    }
-
-    final List<String> details = [];
-
-    // Reason explanation
-    final rawReason = metadata['reason']?.toString();
-    if (rawReason != null && rawReason.isNotEmpty) {
-      String reasonLabel;
-      switch (rawReason.toUpperCase()) {
-        case 'DEVICE_OFFLINE':
-          reasonLabel = 'Thiết bị mất kết nối / không thể liên lạc';
-          break;
-        case 'INACTIVITY':
-        case 'EXTENDED_INACTIVITY':
-          reasonLabel = 'Không phát hiện hoạt động vượt quá ngưỡng cho phép';
-          break;
-        case 'MISSED_CHECK_IN':
-          reasonLabel = 'Không phản hồi yêu cầu xác nhận bình an đúng hạn';
-          break;
-        case 'CRITICAL_BATTERY_INACTIVITY':
-          reasonLabel = 'Pin thiết bị ở mức cạn kiệt (< 15%) và không có cử động';
-          break;
-        case 'MANUAL_SOS':
-          reasonLabel = 'Kích hoạt cảnh báo khẩn cấp thủ công';
-          break;
-        default:
-          reasonLabel = rawReason;
-      }
-      details.add('Nguyên nhân: $reasonLabel');
-    }
-
-    // Risk score
-    final risk = metadata['riskScore'];
-    if (risk != null) {
-      details.add('Mức độ rủi ro: $risk/100');
-    }
-
-    // Previous status
-    final prev = metadata['previousStatus']?.toString();
-    if (prev != null && prev.isNotEmpty) {
-      details.add('Trạng thái trước: $prev');
-    }
-
-    // Note / resolution note
-    final note = (metadata['note'] ?? metadata['resolutionNote'])?.toString();
-    if (note != null && note.isNotEmpty) {
-      details.add('Ghi chú: "$note"');
-    }
-
-    final formattedTime = timestamp != null
-        ? DateFormat('HH:mm:ss • dd/MM/yyyy').format(timestamp.toLocal())
-        : null;
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Timeline indicator with vertical connecting line
-          Column(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFCECE9),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFF4CEC7), width: 1.2),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: color.withAlpha(35),
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFAD7D2),
                   shape: BoxShape.circle,
-                  border: Border.all(color: color, width: 1.5),
                 ),
-                child: Center(
-                  child: Icon(icon, size: 16, color: color),
-                ),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: AppColors.divider,
+                alignment: Alignment.center,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    color: AppColors.danger,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.white,
+                    size: 20,
                   ),
                 ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr(
+                        'incident_safety_alert_title',
+                        fallback: 'Cảnh báo an toàn',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      alertTitle,
+                      style: const TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      alertDesc,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      context.tr(
+                        'incident_time_prefix',
+                        args: {'time': triggeredDateStr},
+                        fallback: 'Thời gian: $triggeredDateStr',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      context.tr(
+                        'incident_risk_level_prefix',
+                        args: {'level': severityLabel},
+                        fallback: 'Mức độ rủi ro: $severityLabel',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(width: 14),
-
-          // Event Content Card
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 14),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.divider.withAlpha(80)),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: () => setState(() => _currentStep = 1),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            child: Text(
+              context.tr('incident_view_detail_btn', fallback: 'Xem chi tiết'),
+              style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton(
+            onPressed: () {
+              DashboardProvider? dash;
+              try {
+                dash = Provider.of<DashboardProvider>(context, listen: false);
+              } catch (_) {}
+              final rel = (_incident != null && dash != null)
+                  ? dash.getMonitoredRelationship(_incident!.monitoredUserId)
+                  : null;
+              final relName =
+                  _incident?.userDisplayName ??
+                  rel?.monitoredUser?.fullName ??
+                  rel?.label ??
+                  context.tr(
+                    'monitored_relative_default',
+                    fallback: 'Người thân',
+                  );
+              final relPhone = rel?.monitoredUser?.phone ?? '';
+              final relEmail = rel?.monitoredUser?.email ?? '';
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ContactRelativeScreen(
+                    name: relName,
+                    statusText: context.tr(
+                      'guardian_check_in_required',
+                      fallback: 'Cần kiểm tra ngay',
+                    ),
+                    isAlert: true,
+                    lastConfirmed: _incident != null
+                        ? DateFormat('dd/MM/yyyy • HH:mm')
+                            .format(_incident!.triggeredAt.toLocal())
+                        : '--:--',
+                    location: context.tr(
+                      'guardian_location_when_needed',
+                      fallback: 'Vị trí (chỉ khi cần)',
+                    ),
+                    phone: relPhone,
+                    email: relEmail,
+                    relationship: rel,
+                  ),
+                ),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              backgroundColor: AppColors.surface,
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              context.tr('incident_call_now_btn', fallback: 'Gọi ngay'),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Screen 18 (4.2) — Chi tiết sự cố (18_incident_detail.png)
+  Widget _buildStepIncidentDetail() {
+    final summaryText = _incident != null
+        ? (_incident!.reason == IncidentReason.MISSED_CHECK_IN
+            ? context.tr(
+                'incident_summary_missed_checkin',
+                fallback: 'Không nhận được xác nhận an toàn theo lịch',
+              )
+            : (_incident!.reason == IncidentReason.DEVICE_OFFLINE
+                ? context.tr(
+                    'incident_summary_device_offline',
+                    fallback: 'Thiết bị mất kết nối kéo dài',
+                  )
+                : context.tr(
+                    'incident_summary_no_activity',
+                    fallback:
+                        'Không ghi nhận hoạt động trong khoảng thời gian quy định',
+                  )))
+        : context.tr(
+            'incident_summary_normal',
+            fallback: 'Không có hoạt động bất thường',
+          );
+
+    final severityLabel = _incident != null
+        ? (_incident!.riskScore >= 70
+            ? context.tr('incident_risk_high', fallback: 'Cao')
+            : (_incident!.riskScore >= 40
+                ? context.tr('incident_risk_medium', fallback: 'Trung bình')
+                : context.tr('incident_risk_low', fallback: 'Thấp')))
+        : context.tr('incident_risk_low', fallback: 'Thấp');
+    final riskText = context.tr(
+      'incident_risk_level_prefix',
+      args: {'level': severityLabel},
+      fallback: 'Mức độ rủi ro: $severityLabel',
+    );
+
+    final timelineItems = <String>[];
+    if (_incident != null) {
+      final triggerTime = DateFormat('HH:mm').format(_incident!.triggeredAt.toLocal());
+      timelineItems.add(
+        context.tr(
+          'incident_timeline_anomaly_detected',
+          args: {'time': triggerTime},
+          fallback: '$triggerTime — Phát hiện bất thường',
+        ),
+      );
+      if (_incident!.escalatedAt != null) {
+        final escTime = DateFormat('HH:mm').format(_incident!.escalatedAt!.toLocal());
+        timelineItems.add(
+          context.tr(
+            'incident_timeline_escalated',
+            args: {'time': escTime},
+            fallback: '$escTime — Nâng cấp cảnh báo',
+          ),
+        );
+      }
+      if (_incident!.acknowledgedAt != null) {
+        final ackTime = DateFormat('HH:mm').format(_incident!.acknowledgedAt!.toLocal());
+        timelineItems.add(
+          context.tr(
+            'incident_timeline_acknowledged',
+            args: {'time': ackTime},
+            fallback: '$ackTime — Đã tiếp nhận xử lý',
+          ),
+        );
+      }
+      if (_incident!.resolvedAt != null) {
+        final resTime = DateFormat('HH:mm').format(_incident!.resolvedAt!.toLocal());
+        timelineItems.add(
+          context.tr(
+            'incident_timeline_resolved',
+            args: {'time': resTime},
+            fallback: '$resTime — Đã giải quyết',
+          ),
+        );
+      }
+    }
+    if (timelineItems.isEmpty) {
+      timelineItems.add(
+        context.tr(
+          'incident_timeline_no_anomaly',
+          args: {'time': '--:--'},
+          fallback: '--:-- — Chưa ghi nhận sự kiện bất thường',
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: const BoxDecoration(
+                      color: AppColors.danger,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      context.tr(
+                        'incident_summary_title',
+                        fallback: 'Tóm tắt sự cố',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(left: 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      summaryText,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      riskText,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Divider(height: 1, color: Color(0xFFEEF1EE)),
+              ),
+              Text(
+                context.tr(
+                  'incident_timeline_title',
+                  fallback: 'Timeline sự kiện',
+                ),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              for (int i = 0; i < timelineItems.length; i++) ...[
+                if (i > 0) const SizedBox(height: 8),
+                _buildRedDotTimelineRow(timelineItems[i]),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildWhiteSectionCard(
+          title: context.tr(
+            'incident_notif_history_title',
+            fallback: 'Lịch sử thông báo',
+          ),
+          children: [
+            Text(
+              _incident?.escalatedAt != null
+                  ? context.tr(
+                      'incident_notif_sent_guardian',
+                      args: {
+                        'time': DateFormat('HH:mm').format(
+                          _incident!.escalatedAt!.toLocal(),
+                        ),
+                      },
+                      fallback:
+                          'Đã gửi cảnh báo khẩn cấp đến người giám hộ (${DateFormat('HH:mm').format(_incident!.escalatedAt!.toLocal())})',
+                    )
+                  : (_incident != null
+                      ? context.tr(
+                          'incident_notif_sent_relative',
+                          args: {
+                            'time': DateFormat('HH:mm').format(
+                              _incident!.triggeredAt.toLocal(),
+                            ),
+                          },
+                          fallback:
+                              'Đã gửi thông báo kiểm tra đến người thân (${DateFormat('HH:mm').format(_incident!.triggeredAt.toLocal())})',
+                        )
+                      : context.tr(
+                          'incident_notif_none_sent',
+                          fallback: 'Chưa có thông báo nào được gửi',
+                        )),
+              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.cardBorder),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                color: AppColors.primary,
+                size: 22,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr(
+                        'incident_last_location_title',
+                        fallback: 'Vị trí gần nhất (nếu có)',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      context.tr(
+                        'incident_no_location_data',
+                        fallback: 'Chưa có dữ liệu vị trí',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: () => setState(() => _currentStep = 2),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              context.tr('incident_step_resolve', fallback: 'Xử lý sự cố'),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRedDotTimelineRow(String label) {
+    return Row(
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: const BoxDecoration(
+            color: AppColors.danger,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Screen 19 (4.3) — Xử lý sự cố (19_incident_recovery.png)
+  Widget _buildStepResolveIncident() {
+    final isResolved = _incident?.status == IncidentStatus.RESOLVED;
+    final contactTimestamp = _incident?.resolvedAt != null
+        ? DateFormat('dd/MM/yyyy • HH:mm').format(_incident!.resolvedAt!.toLocal())
+        : (_incident?.acknowledgedAt != null
+            ? DateFormat('dd/MM/yyyy • HH:mm').format(_incident!.acknowledgedAt!.toLocal())
+            : '--:--');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.cardBorder),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFDCEEE4),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.tr(
+                            'incident_contacted_relative',
+                            fallback: 'Đã liên hệ với người thân',
+                          ),
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          contactTimestamp,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Divider(height: 1, indent: 50, color: Color(0xFFEEF1EE)),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFDCEEE4),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.tr(
+                            'incident_current_status_title',
+                            fallback: 'Trạng thái hiện tại',
+                          ),
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isResolved
+                              ? context.tr(
+                                  'incident_currently_safe',
+                                  fallback: 'Hiện tại: An toàn',
+                                )
+                              : context.tr(
+                                  'incident_unconfirmed_status',
+                                  fallback: 'Chưa xác nhận',
+                                ),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (isResolved) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE3F1E8),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFC8E3D2)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFCDE5D6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.verified_user_outlined,
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.tr(
+                          'incident_status_restored',
+                          fallback: 'Đã khôi phục trạng thái',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        context.tr(
+                          'incident_currently_safe',
+                          fallback: 'Hiện tại: An toàn',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
                         ),
                       ),
                     ],
                   ),
-                  if (formattedTime != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time, size: 13, color: AppColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text(
-                          formattedTime,
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (details.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    ...details.map(
-                      (d) => Padding(
-                        padding: const EdgeInsets.only(top: 2.0),
-                        child: Text(
-                          d,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                            height: 1.35,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.tr(
+                  'incident_resolution_note_title',
+                  fallback: 'Ghi chú xử lý',
+                ),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _noteController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: context.tr(
+                    'incident_note_hint',
+                    fallback: 'Nhập ghi chú...',
+                  ),
+                  hintStyle: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  contentPadding: const EdgeInsets.all(14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.cardBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.cardBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : () => _resolveIncident(falseAlarm: false),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: const StadiumBorder(),
+            ),
+            child: Text(
+              context.tr(
+                'incident_mark_resolved_btn',
+                fallback: 'Đánh dấu đã xử lý',
+              ),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : () => _resolveIncident(falseAlarm: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.surface,
+              foregroundColor: AppColors.textPrimary,
+              elevation: 0,
+              side: const BorderSide(color: AppColors.cardBorder),
+              shape: const StadiumBorder(),
+            ),
+            child: Text(
+              context.tr(
+                'incident_false_alarm_btn',
+                fallback: 'Báo động giả',
+              ),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWhiteSectionCard({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonitoredUserSafetyCard(IncidentModel incident) {
+    final isResolved = incident.status == IncidentStatus.RESOLVED;
+    final isAcknowledged = incident.status == IncidentStatus.ACKNOWLEDGED;
+    final dateFormat = DateFormat('HH:mm:ss - dd/MM/yyyy');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isResolved
+                  ? Icons.check_circle_rounded
+                  : (isAcknowledged
+                      ? Icons.support_agent_rounded
+                      : Icons.sensors_rounded),
+              color: AppColors.primary,
+              size: 30,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isResolved
+                ? context.tr(
+                    'incident_monitored_resolved_msg',
+                    fallback: 'Sự cố đã được người thân xử lý an toàn',
+                  )
+                : (isAcknowledged
+                    ? context.tr(
+                        'incident_monitored_ack_msg',
+                        fallback: 'Người thân đang liên hệ hỗ trợ bạn',
+                      )
+                    : context.tr(
+                        'incident_monitored_sent_msg',
+                        fallback:
+                            'Tín hiệu khẩn cấp đã được gửi tới người thân',
+                      )),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.tr(
+              'incident_monitored_time_prefix',
+              args: {'time': dateFormat.format(incident.triggeredAt.toLocal())},
+              fallback:
+                  'Thời điểm: ${dateFormat.format(incident.triggeredAt.toLocal())}',
+            ),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -595,4 +1272,3 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     );
   }
 }
-

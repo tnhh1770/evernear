@@ -71,7 +71,9 @@ void main() {
     });
 
     test('Missing key in Tier 2 language falls back to English then Vietnamese', () {
-      // Simulating a non-Tier 1 language like Icelandic ('is')
+      // Simulating an unbundled non-Tier 1 language fallback when extended catalogs are disabled
+      AppLocalizations.enableExtendedCatalogs = false;
+      addTearDown(() => AppLocalizations.enableExtendedCatalogs = true);
       final l10nIs = AppLocalizations(const Locale('is'));
       expect(l10nIs.tr('check_in_button'), 'I am okay');
     });

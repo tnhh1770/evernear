@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Param,
   Body,
   Query,
@@ -24,8 +25,10 @@ export class IncidentsController {
   async list(
     @CurrentUser() user: User,
     @Query('status') status?: IncidentStatus,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
   ) {
-    return this.incidentsService.listIncidents(user.id, status);
+    return this.incidentsService.listIncidents(user.id, status, limit, offset);
   }
 
   @Get(':id')
@@ -53,5 +56,22 @@ export class IncidentsController {
     @Body('note') note?: string,
   ) {
     return this.incidentsService.resolveIncident(user.id, id, note);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async deleteIncident(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+  ) {
+    return this.incidentsService.deleteIncident(user.id, id);
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.OK)
+  async clearAllIncidents(
+    @CurrentUser() user: User,
+  ) {
+    return this.incidentsService.clearAllIncidents(user.id);
   }
 }

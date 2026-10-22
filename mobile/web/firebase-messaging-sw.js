@@ -18,7 +18,7 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Background push received:', payload);
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'Carely';
+  const notificationTitle = payload.notification?.title || payload.data?.title || 'Evernear';
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.body || '',
     icon: '/icons/Icon-192.png',

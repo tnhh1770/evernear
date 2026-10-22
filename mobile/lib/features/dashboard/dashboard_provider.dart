@@ -11,6 +11,7 @@ import '../../core/network/realtime_service.dart';
 import '../../core/services/permission_service.dart';
 import '../../core/services/sync_queue_service.dart';
 import '../../core/storage/local_storage.dart';
+import '../auth/auth_provider.dart';
 
 class DashboardProvider with ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -20,6 +21,7 @@ class DashboardProvider with ChangeNotifier {
   List<RelationshipModel> _allRelationships = [];
   List<RelationshipModel> _monitoredByMe = []; // Relationships where current user is monitor
   List<RelationshipModel> _monitoringMe = []; // Relationships where current user is monitored
+  Map<String, RelationshipModel> _monitoredByMeMap = {};
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -27,21 +29,55 @@ class DashboardProvider with ChangeNotifier {
   int _activeIncidentsCount = 0;
   int _unreadNotificationsCount = 0;
   bool _lastCheckInOffline = false;
+  Map<String, double>? _lastCheckInLocation;
+  DateTime? _lastCheckInLocationAt;
+  bool _lastCheckInLocationEnabled = true;
   String? _currentUserId;
 
   DashboardProvider() {
     _loadCurrentUserId();
     _initRealtime();
+    AuthProvider.addLogoutCallback(clearState);
   }
 
   Future<void> _loadCurrentUserId() async {
     _currentUserId = await LocalStorage.getUserId();
+    try {
+      final selfConfig = await LocalStorage.getSelfMonitoringConfig();
+      if (selfConfig != null) {
+        if (selfConfig['locationEnabled'] is bool) {
+          _lastCheckInLocationEnabled = selfConfig['locationEnabled'] as bool;
+        }
+        final savedLoc = selfConfig['lastCheckInLocation'];
+        if (savedLoc is Map) {
+          final lat = (savedLoc['latitude'] as num?)?.toDouble();
+          final lng = (savedLoc['longitude'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            _lastCheckInLocation = {'latitude': lat, 'longitude': lng};
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  Map<String, double>? get lastCheckInLocation => _lastCheckInLocation;
+  DateTime? get lastCheckInLocationAt => _lastCheckInLocationAt;
+  bool get lastCheckInLocationEnabled => _lastCheckInLocationEnabled;
+  String? get formattedLastCheckInLocation {
+    if (_lastCheckInLocation == null) return null;
+    final lat = _lastCheckInLocation!['latitude'];
+    final lng = _lastCheckInLocation!['longitude'];
+    if (lat == null || lng == null) return null;
+    return '${lat.toStringAsFixed(4)}° N, ${lng.toStringAsFixed(4)}° E';
   }
 
   String? get currentUserId => _currentUserId;
   List<RelationshipModel> get allRelationships => _allRelationships;
   List<RelationshipModel> get monitoredByMe => _monitoredByMe;
   List<RelationshipModel> get monitoringMe => _monitoringMe;
+  Map<String, RelationshipModel> get monitoredByMeMap => _monitoredByMeMap;
+  RelationshipModel? getMonitoredRelationship(String monitoredUserId) =>
+      _monitoredByMeMap[monitoredUserId];
   bool get isLoading => _isLoading;
   String? get errorMessageKey => _errorMessageKey;
   String? get errorMessage {
@@ -58,8 +94,10 @@ class DashboardProvider with ChangeNotifier {
     return _errorMessage;
   }
   int _selectedTabIndex = 0;
+  bool _userHasSelectedTab = false;
   int get selectedTabIndex => _selectedTabIndex;
   void setSelectedTabIndex(int index) {
+    _userHasSelectedTab = true;
     if (_selectedTabIndex != index) {
       _selectedTabIndex = index;
       notifyListeners();
@@ -77,7 +115,11 @@ class DashboardProvider with ChangeNotifier {
   }
 
   void setUnreadNotificationsCount(int count) {
-    _unreadNotificationsCount = count;
+    final safeCount = count < 0 ? 0 : count;
+    _unreadNotificationsCount = safeCount;
+    if (_activeIncidentsCount > safeCount) {
+      _activeIncidentsCount = safeCount;
+    }
     notifyListeners();
   }
 
@@ -123,7 +165,18 @@ class DashboardProvider with ChangeNotifier {
     try {
       final currentUserId = await LocalStorage.getUserId();
       _currentUserId = currentUserId;
-      final relResponse = await _apiClient.dio.get(ApiEndpoints.relationships);
+
+      // Parallelize relationships and active incidents requests to eliminate sequential waterfall
+      final responses = await Future.wait([
+        _apiClient.dio.get(ApiEndpoints.relationships),
+        _apiClient.dio.get(
+          ApiEndpoints.incidents,
+          queryParameters: {'status': 'OPEN'},
+        ),
+      ]);
+
+      final relResponse = responses[0];
+      final incidentResponse = responses[1];
 
       if (relResponse.statusCode == 200) {
         if (relResponse.data is Map<String, dynamic> || relResponse.data is Map) {
@@ -133,46 +186,77 @@ class DashboardProvider with ChangeNotifier {
 
           _monitoredByMe = rawMonitoring
               .map((json) => RelationshipModel.fromJson(json as Map<String, dynamic>))
-              .where((r) => r.status == RelationshipStatus.ACCEPTED)
+              .where((r) =>
+                  r.status == RelationshipStatus.ACCEPTED &&
+                  r.monitoredUser != null)
               .toList();
 
           _monitoringMe = rawMonitoredBy
               .map((json) => RelationshipModel.fromJson(json as Map<String, dynamic>))
-              .where((r) => r.status == RelationshipStatus.ACCEPTED)
+              .where((r) =>
+                  r.status == RelationshipStatus.ACCEPTED &&
+                  r.monitorUser != null)
               .toList();
 
           _allRelationships = [
-            ...rawMonitoring.map((j) => RelationshipModel.fromJson(j as Map<String, dynamic>)),
-            ...rawMonitoredBy.map((j) => RelationshipModel.fromJson(j as Map<String, dynamic>)),
+            ...rawMonitoring
+                .map((j) => RelationshipModel.fromJson(j as Map<String, dynamic>))
+                .where((r) => r.monitoredUser != null),
+            ...rawMonitoredBy
+                .map((j) => RelationshipModel.fromJson(j as Map<String, dynamic>))
+                .where((r) => r.monitorUser != null),
           ];
         } else if (relResponse.data is List) {
           final List list = relResponse.data as List;
           _allRelationships = list
               .map((json) => RelationshipModel.fromJson(json as Map<String, dynamic>))
+              .where((r) => r.monitoredUser != null || r.monitorUser != null)
               .toList();
 
           _monitoringMe = _allRelationships
-              .where((r) => r.monitoredUserId == currentUserId && r.status == RelationshipStatus.ACCEPTED)
+              .where((r) =>
+                  r.monitoredUserId == currentUserId &&
+                  r.status == RelationshipStatus.ACCEPTED &&
+                  r.monitorUser != null)
               .toList();
 
           _monitoredByMe = _allRelationships
               .where((r) =>
                   (r.monitorUserId == currentUserId || r.monitorId == currentUserId) &&
-                  r.status == RelationshipStatus.ACCEPTED)
+                  r.status == RelationshipStatus.ACCEPTED &&
+                  r.monitoredUser != null)
               .toList();
         }
+        _monitoredByMeMap = {for (final r in _monitoredByMe) r.monitoredUserId: r};
       }
 
-      // Fetch active incidents (Backend uses OPEN instead of TRIGGERED)
-      final incidentResponse = await _apiClient.dio.get(
-        ApiEndpoints.incidents,
-        queryParameters: {'status': 'OPEN'},
-      );
       if (incidentResponse.statusCode == 200) {
-        final List incList = incidentResponse.data as List;
-        _activeIncidentsCount = incList.length;
-        if (_unreadNotificationsCount < _activeIncidentsCount) {
-          _unreadNotificationsCount = _activeIncidentsCount;
+        final List incList = incidentResponse.data is List ? incidentResponse.data as List : const [];
+        final readIds = await LocalStorage.getReadNotificationIds();
+        final dismissedIds = await LocalStorage.getDismissedNotificationIds();
+        int unreadOpenCount = 0;
+        for (final item in incList) {
+          if (item is Map) {
+            final id = item['id']?.toString() ?? '';
+            final notifKey = 'inc-$id';
+            if (id.isNotEmpty && !readIds.contains(notifKey) && !dismissedIds.contains(notifKey)) {
+              unreadOpenCount++;
+            }
+          } else {
+            unreadOpenCount++;
+          }
+        }
+        _activeIncidentsCount = unreadOpenCount;
+      }
+
+      // Role-based initial tab routing:
+      // If the user has not explicitly navigated and is ONLY a Guardian (no one monitors them),
+      // default them to Tab 1 (Family / MonitorView) instead of Tab 0 (Self / MonitoredView).
+      if (!_userHasSelectedTab) {
+        if (_monitoringMe.isEmpty && _monitoredByMe.isNotEmpty) {
+          _selectedTabIndex = 1;
+        } else {
+          _selectedTabIndex = 0;
         }
       }
     } catch (e) {
@@ -183,6 +267,38 @@ class DashboardProvider with ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  void clearState() {
+    _allRelationships = [];
+    _monitoredByMe = [];
+    _monitoringMe = [];
+    _monitoredByMeMap = {};
+    _isLoading = false;
+    _errorMessage = null;
+    _errorMessageKey = null;
+    _activeIncidentsCount = 0;
+    _unreadNotificationsCount = 0;
+    _lastCheckInOffline = false;
+    _lastCheckInLocation = null;
+    _lastCheckInLocationAt = null;
+    _currentUserId = null;
+    _userHasSelectedTab = false;
+    _selectedTabIndex = 0;
+    notifyListeners();
+  }
+
+  Future<bool> isLocationSharingEnabled() async {
+    if (_monitoringMe.isNotEmpty && _monitoringMe.first.config != null) {
+      return _monitoringMe.first.config!.locationEnabled;
+    }
+    try {
+      final selfConfig = await LocalStorage.getSelfMonitoringConfig();
+      if (selfConfig != null && selfConfig['locationEnabled'] is bool) {
+        return selfConfig['locationEnabled'] as bool;
+      }
+    } catch (_) {}
+    return true;
   }
 
   Future<bool> sendCheckIn({
@@ -196,14 +312,32 @@ class DashboardProvider with ChangeNotifier {
         await LocalStorage.getOrCreateDeviceUid();
     final eventId = _uuid.v4();
 
-    double? lat = latitude;
-    double? lng = longitude;
-    if (lat == null || lng == null) {
-      final loc = await PermissionService().getSingleShotLocation();
-      if (loc != null) {
-        lat = loc['latitude'];
-        lng = loc['longitude'];
+    final allowLocation = await isLocationSharingEnabled();
+    _lastCheckInLocationEnabled = allowLocation;
+
+    double? lat;
+    double? lng;
+    if (allowLocation) {
+      lat = latitude;
+      lng = longitude;
+      if (lat == null || lng == null) {
+        final loc = await PermissionService().getSingleShotLocation();
+        if (loc != null) {
+          lat = loc['latitude'];
+          lng = loc['longitude'];
+        }
       }
+    }
+
+    if (lat != null && lng != null) {
+      _lastCheckInLocation = {'latitude': lat, 'longitude': lng};
+      _lastCheckInLocationAt = DateTime.now();
+      try {
+        final selfConfig =
+            await LocalStorage.getSelfMonitoringConfig() ?? <String, dynamic>{};
+        selfConfig['lastCheckInLocation'] = {'latitude': lat, 'longitude': lng};
+        await LocalStorage.saveSelfMonitoringConfig(selfConfig);
+      } catch (_) {}
     }
 
     final payload = {
@@ -412,9 +546,12 @@ class DashboardProvider with ChangeNotifier {
 
       case 'INCIDENT_CREATED':
         _activeIncidentsCount++;
-        _unreadNotificationsCount = unreadNotificationsCount + 1;
         final incident = event['incident'];
-        final targetUserId = incident is Map ? incident['monitoredUserId']?.toString() : null;
+        final targetUserId = incident is Map ? (incident['monitoredUserId'] ?? incident['userId'])?.toString() : null;
+        final currentId = _currentUserId ?? await LocalStorage.getUserId();
+        if (targetUserId != null && targetUserId != currentId) {
+          _unreadNotificationsCount = unreadNotificationsCount + 1;
+        }
         if (targetUserId != null) {
           _monitoredByMe = _monitoredByMe.map((rel) {
             if (rel.monitoredUserId == targetUserId) {
@@ -427,6 +564,33 @@ class DashboardProvider with ChangeNotifier {
           }).toList();
         }
         notifyListeners();
+        fetchDashboardData();
+        break;
+
+      case 'INCIDENT_ESCALATED':
+        final relId = event['relationshipId']?.toString();
+        if (relId != null) {
+          _monitoredByMe = _monitoredByMe.map((rel) {
+            if (rel.id == relId) {
+              final updatedConfig = rel.config?.copyWith(
+                currentState: MonitoringState.ESCALATED,
+              );
+              return rel.copyWith(config: updatedConfig);
+            }
+            return rel;
+          }).toList();
+        }
+        notifyListeners();
+        fetchDashboardData();
+        break;
+
+      case 'CHECK_IN_PROMPT':
+        fetchDashboardData();
+        break;
+
+      case 'INCIDENT_ACKNOWLEDGED':
+        notifyListeners();
+        fetchDashboardData();
         break;
 
       case 'INCIDENT_RESOLVED':
@@ -437,6 +601,7 @@ class DashboardProvider with ChangeNotifier {
           _unreadNotificationsCount--;
         }
         notifyListeners();
+        fetchDashboardData();
         break;
 
       case 'MONITORING_CONFIG_UPDATED':
@@ -448,6 +613,7 @@ class DashboardProvider with ChangeNotifier {
 
   @override
   void dispose() {
+    AuthProvider.removeLogoutCallback(clearState);
     _realtimeSub?.cancel();
     super.dispose();
   }

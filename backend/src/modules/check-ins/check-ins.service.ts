@@ -109,21 +109,174 @@ export class CheckInsService {
       occurredAt = now;
     }
 
-    // 3. Save Check-In Record
-    const checkIn = this.checkInRepo.create({
-      eventId: dto.eventId,
-      userId,
-      deviceId: device.id,
-      relationshipId: dto.relationshipId || null,
-      occurredAt,
-      receivedAt: now,
-      batteryLevel: dto.batteryLevel,
-      note: dto.note || 'Tôi vẫn ổn',
+    // 3. Update all active monitoring relationships and atomic multi-writes in a transaction
+    const relationships = await this.relationshipRepo.find({
+      where: {
+        monitoredUserId: userId,
+        status: RelationshipStatus.ACCEPTED,
+      },
+      relations: { config: true },
     });
 
-    let savedCheckIn: CheckIn;
+    let savedCheckIn!: CheckIn;
+    const resolvedIncidents: Incident[] = [];
     try {
-      savedCheckIn = await this.checkInRepo.save(checkIn);
+      await this.checkInRepo.manager.transaction(async (manager) => {
+        // 3. Save Check-In Record
+        const checkIn = manager.create(CheckIn, {
+          eventId: dto.eventId,
+          userId,
+          deviceId: device.id,
+          relationshipId: dto.relationshipId || null,
+          occurredAt,
+          receivedAt: now,
+          batteryLevel: dto.batteryLevel,
+          note: dto.note || 'Tôi vẫn ổn',
+        });
+        savedCheckIn = await manager.save(CheckIn, checkIn);
+
+        // 4. Save Location if supplied
+        if (dto.location && dto.location.latitude && dto.location.longitude) {
+          const loc = manager.create(Location, {
+            userId,
+            deviceId: device.id,
+            latitude: dto.location.latitude,
+            longitude: dto.location.longitude,
+            accuracy: dto.location.accuracy,
+            capturedAt: occurredAt,
+            source: 'CHECK_IN',
+          });
+          await manager.save(Location, loc);
+        }
+
+        // 5. Ingest CHECK_IN Activity (Weight = 1.0)
+        const existingActivity = await manager.findOne(Activity, {
+          where: { eventId: dto.eventId },
+        });
+        if (!existingActivity) {
+          const activity = manager.create(Activity, {
+            eventId: dto.eventId,
+            userId,
+            deviceId: device.id,
+            type: ActivityType.CHECK_IN,
+            weight: 1.0,
+            confidence: 1.0,
+            occurredAt,
+            receivedAt: now,
+            source: 'MOBILE',
+            metadata: {
+              note: dto.note,
+              batteryLevel: dto.batteryLevel,
+            },
+          });
+          try {
+            await manager.save(Activity, activity);
+          } catch (actErr: any) {
+            if (!this.isUniqueConstraintViolation(actErr)) {
+              throw actErr;
+            }
+            this.logger.debug(`Activity already saved for check-in eventId: ${dto.eventId}`);
+          }
+        }
+
+        // 6. Update all active monitoring relationships for this user
+        for (const rel of relationships) {
+          if (!rel.config || !rel.config.enabled) continue;
+
+          const config = rel.config;
+          const currentLast = config.lastMeaningfulActivityAt
+            ? new Date(config.lastMeaningfulActivityAt)
+            : new Date(0);
+
+          const shouldResetState =
+            config.currentState !== MonitoringState.SUSPENDED &&
+            MonitoringStateMachine.canTransition(config.currentState, MonitoringState.ACTIVE);
+
+          if (occurredAt.getTime() > currentLast.getTime()) {
+            const nextEval = new Date(
+              occurredAt.getTime() + config.inactivityThresholdMinutes * 60 * 1000,
+            );
+
+            await manager
+              .createQueryBuilder()
+              .update(MonitoringConfig)
+              .set({
+                lastMeaningfulActivityAt: occurredAt,
+                nextEvaluationAt: nextEval,
+                ...(shouldResetState ? { currentState: MonitoringState.ACTIVE } : {}),
+              })
+              .where(
+                'id = :id AND (last_meaningful_activity_at IS NULL OR last_meaningful_activity_at < :occurredAt)',
+                {
+                  id: config.id,
+                  occurredAt,
+                },
+              )
+              .execute();
+          } else {
+            this.logger.debug(
+              `Ignoring out-of-order check-in timestamp rollback: occurredAt (${occurredAt.toISOString()}) <= currentLast (${currentLast.toISOString()}) for relationship ${rel.id}`,
+            );
+            // Even if activity clock is not rolled back, restore ACTIVE state if currently in warning/check-in required
+            if (shouldResetState && config.currentState !== MonitoringState.ACTIVE) {
+              const nextEval = new Date(
+                now.getTime() + config.inactivityThresholdMinutes * 60 * 1000,
+              );
+              await manager.update(MonitoringConfig, config.id, {
+                currentState: MonitoringState.ACTIVE,
+                nextEvaluationAt: nextEval,
+              });
+            }
+          }
+        }
+
+        // 7. Resolve any active (OPEN, ESCALATED, ACKNOWLEDGED) incidents automatically
+        const incidentsToResolve = await manager.find(Incident, {
+          where: {
+            userId,
+            status: In([
+              IncidentStatus.OPEN,
+              IncidentStatus.ESCALATED,
+              IncidentStatus.ACKNOWLEDGED,
+            ]),
+          },
+        });
+        const incidentsToSave: Incident[] = [];
+        const eventsToSave: IncidentEvent[] = [];
+
+        for (const inc of incidentsToResolve) {
+          // Safety invariant: A historical check-in from before the incident started cannot resolve it!
+          if (occurredAt.getTime() < inc.createdAt.getTime()) {
+            this.logger.warn(
+              `Skipping auto-resolution of incident ${inc.id}: check-in occurredAt (${occurredAt.toISOString()}) predates incident createdAt (${inc.createdAt.toISOString()})`,
+            );
+            continue;
+          }
+
+          inc.status = IncidentStatus.RESOLVED;
+          inc.resolvedAt = now;
+          inc.resolvedBy = userId;
+          incidentsToSave.push(inc);
+          resolvedIncidents.push(inc);
+
+          eventsToSave.push(
+            manager.create(IncidentEvent, {
+              incidentId: inc.id,
+              type: IncidentEventType.INCIDENT_RESOLVED,
+              timestamp: now,
+              metadata: {
+                note: 'User confirmed safety with Check-in ("Tôi vẫn ổn")',
+                checkInId: savedCheckIn.id,
+              },
+            }),
+          );
+        }
+
+        if (incidentsToSave.length > 0) {
+          await manager.save(Incident, incidentsToSave);
+          await manager.save(IncidentEvent, eventsToSave);
+        }
+      });
     } catch (err: any) {
       if (this.isUniqueConstraintViolation(err)) {
         this.logger.debug(`Concurrent check-in insert race caught for eventId: ${dto.eventId}`);
@@ -135,147 +288,6 @@ export class CheckInsService {
         }
       }
       throw err;
-    }
-
-    // 4. Save Location if supplied
-    if (dto.location && dto.location.latitude && dto.location.longitude) {
-      const loc = this.locationRepo.create({
-        userId,
-        deviceId: device.id,
-        latitude: dto.location.latitude,
-        longitude: dto.location.longitude,
-        accuracy: dto.location.accuracy,
-        capturedAt: occurredAt,
-        source: 'CHECK_IN',
-      });
-      await this.locationRepo.save(loc);
-    }
-
-    // 5. Ingest CHECK_IN Activity (Weight = 1.0)
-    const existingActivity = await this.activityRepo.findOne({
-      where: { eventId: dto.eventId },
-    });
-    if (!existingActivity) {
-      const activity = this.activityRepo.create({
-        eventId: dto.eventId,
-        userId,
-        deviceId: device.id,
-        type: ActivityType.CHECK_IN,
-        weight: 1.0,
-        confidence: 1.0,
-        occurredAt,
-        receivedAt: now,
-        source: 'MOBILE',
-        metadata: {
-          note: dto.note,
-          batteryLevel: dto.batteryLevel,
-        },
-      });
-      try {
-        await this.activityRepo.save(activity);
-      } catch (err: any) {
-        if (!this.isUniqueConstraintViolation(err)) {
-          throw err;
-        }
-        this.logger.debug(`Activity already saved for check-in eventId: ${dto.eventId}`);
-      }
-    }
-
-    // 6. Update all active monitoring relationships for this user
-    const relationships = await this.relationshipRepo.find({
-      where: {
-        monitoredUserId: userId,
-        status: RelationshipStatus.ACCEPTED,
-      },
-      relations: { config: true },
-    });
-
-    for (const rel of relationships) {
-      if (!rel.config || !rel.config.enabled) continue;
-
-      const config = rel.config;
-      const currentLast = config.lastMeaningfulActivityAt
-        ? new Date(config.lastMeaningfulActivityAt)
-        : new Date(0);
-
-      // Invariant: Never allow an out-of-order delayed check-in to roll back the activity clock!
-      if (occurredAt.getTime() > currentLast.getTime()) {
-        const nextEval = new Date(
-          occurredAt.getTime() + config.inactivityThresholdMinutes * 60 * 1000,
-        );
-
-        // Revert state back to ACTIVE if allowed by StateMachine
-        const shouldResetState =
-          config.currentState !== MonitoringState.SUSPENDED &&
-          MonitoringStateMachine.canTransition(config.currentState, MonitoringState.ACTIVE);
-
-        await this.configRepo
-          .createQueryBuilder()
-          .update(MonitoringConfig)
-          .set({
-            lastMeaningfulActivityAt: occurredAt,
-            nextEvaluationAt: nextEval,
-            ...(shouldResetState ? { currentState: MonitoringState.ACTIVE } : {}),
-          })
-          .where(
-            'id = :id AND (last_meaningful_activity_at IS NULL OR last_meaningful_activity_at < :occurredAt)',
-            {
-              id: config.id,
-              occurredAt,
-            },
-          )
-          .execute();
-      } else {
-        this.logger.debug(
-          `Ignoring out-of-order check-in timestamp rollback: occurredAt (${occurredAt.toISOString()}) <= currentLast (${currentLast.toISOString()}) for relationship ${rel.id}`,
-        );
-      }
-    }
-
-    // 7. Resolve any active (OPEN, ESCALATED, ACKNOWLEDGED) incidents automatically
-    const incidentsToResolve = await this.incidentRepo.find({
-      where: {
-        userId,
-        status: In([
-          IncidentStatus.OPEN,
-          IncidentStatus.ESCALATED,
-          IncidentStatus.ACKNOWLEDGED,
-        ]),
-      },
-    });
-    const incidentsToSave: Incident[] = [];
-    const eventsToSave: IncidentEvent[] = [];
-
-    for (const inc of incidentsToResolve) {
-      // Safety invariant: A historical check-in from before the incident started cannot resolve it!
-      if (occurredAt.getTime() < inc.createdAt.getTime()) {
-        this.logger.warn(
-          `Skipping auto-resolution of incident ${inc.id}: check-in occurredAt (${occurredAt.toISOString()}) predates incident createdAt (${inc.createdAt.toISOString()})`,
-        );
-        continue;
-      }
-
-      inc.status = IncidentStatus.RESOLVED;
-      inc.resolvedAt = now;
-      inc.resolvedBy = userId;
-      incidentsToSave.push(inc);
-
-      eventsToSave.push(
-        this.eventRepo.create({
-          incidentId: inc.id,
-          type: IncidentEventType.INCIDENT_RESOLVED,
-          timestamp: now,
-          metadata: {
-            note: 'User confirmed safety with Check-in ("Tôi vẫn ổn")',
-            checkInId: savedCheckIn.id,
-          },
-        }),
-      );
-    }
-
-    if (incidentsToSave.length > 0) {
-      await this.incidentRepo.save(incidentsToSave);
-      await this.eventRepo.save(eventsToSave);
     }
 
     // 8. Notify all active supervisors / guardians that the monitored person checked in safely
@@ -336,7 +348,7 @@ export class CheckInsService {
       this.realtimeService.emitToMonitorsOf(userId, checkInPayload).catch(() => {});
 
       // If open incidents were auto-resolved by this check-in, notify monitors in real-time
-      for (const inc of incidentsToSave) {
+      for (const inc of resolvedIncidents) {
         this.realtimeService
           .emitToRelationship(inc.relationshipId, {
             type: 'INCIDENT_RESOLVED',

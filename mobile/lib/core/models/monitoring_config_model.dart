@@ -42,6 +42,7 @@ class MonitoringConfigModel {
 
   /// Backend compatibility alias
   int get checkInGraceMinutes => checkInGracePeriodMinutes;
+  DateTime? get lastActivityAt => lastMeaningfulActivityAt;
 
   static DateTime? _parseDate(dynamic val) {
     if (val == null) return null;

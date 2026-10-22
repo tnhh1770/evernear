@@ -17,51 +17,51 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
     it('1.1 should safely handle unknown template names and fall back to default template in requested language if supported', () => {
       // In German
       const resDe = templateService.render('UNKNOWN_EVENT_123', {}, 'de');
-      expect(resDe.title).toBe('Carely');
-      expect(resDe.body).toBe('Neue Benachrichtigung aus dem Carely-System.');
+      expect(resDe.title).toBe('Evernear');
+      expect(resDe.body).toBe('Neue Benachrichtigung aus dem Evernear-System.');
 
       // In French
       const resFr = templateService.render('ANOTHER_NON_EXISTENT', {}, 'fr');
-      expect(resFr.title).toBe('Carely');
-      expect(resFr.body).toBe('Nouvelle notification du système de suivi Carely.');
+      expect(resFr.title).toBe('Evernear');
+      expect(resFr.body).toBe('Nouvelle notification du système de suivi Evernear.');
 
       // In Vietnamese
       const resVi = templateService.render('RANDOM_FOO_BAR', {}, 'vi');
-      expect(resVi.title).toBe('Carely');
-      expect(resVi.body).toBe('Thông báo mới từ hệ thống chăm sóc Carely.');
+      expect(resVi.title).toBe('Evernear');
+      expect(resVi.body).toBe('Thông báo mới từ hệ thống chăm sóc Evernear.');
     });
 
     it('1.2 should fall back to English default template when template name is unknown AND locale is unsupported', () => {
       const resXx = templateService.render('UNKNOWN_EVENT', {}, 'xx');
-      expect(resXx.title).toBe('Carely');
-      expect(resXx.body).toBe('New notification from Carely care system.');
+      expect(resXx.title).toBe('Evernear');
+      expect(resXx.body).toBe('New notification from Evernear care system.');
 
       const resInvalid = templateService.render('MYSTERY_CODE', {}, 'invalid-locale-xyz');
-      expect(resInvalid.title).toBe('Carely');
-      expect(resInvalid.body).toBe('New notification from Carely care system.');
+      expect(resInvalid.title).toBe('Evernear');
+      expect(resInvalid.body).toBe('New notification from Evernear care system.');
     });
 
     it('1.3 should safely handle edge-case locale formats (empty string, null, undefined, mixed case, regional subtags)', () => {
       // Empty string
       const resEmpty = templateService.render('CHECK_IN_PROMPT', {}, '');
-      expect(resEmpty.title).toBe('Carely — Bạn vẫn ổn chứ?');
+      expect(resEmpty.title).toBe('Evernear — Bạn vẫn ổn chứ?');
 
       // Null or undefined cast
       const resNull = templateService.render('CHECK_IN_PROMPT', {}, null as any);
-      expect(resNull.title).toBe('Carely — Bạn vẫn ổn chứ?');
+      expect(resNull.title).toBe('Evernear — Bạn vẫn ổn chứ?');
 
       const resUndef = templateService.render('CHECK_IN_PROMPT', {}, undefined);
-      expect(resUndef.title).toBe('Carely — Bạn vẫn ổn chứ?');
+      expect(resUndef.title).toBe('Evernear — Bạn vẫn ổn chứ?');
 
       // Uppercase regional codes
       const resUS = templateService.render('CHECK_IN_PROMPT', {}, 'EN-US');
-      expect(resUS.title).toBe('Carely — Are you doing okay?');
+      expect(resUS.title).toBe('Evernear — Are you doing okay?');
 
       const resBR = templateService.render('CHECK_IN_PROMPT', {}, 'pt_BR');
-      expect(resBR.title).toBe('Carely — Está tudo bem?');
+      expect(resBR.title).toBe('Evernear — Está tudo bem?');
 
       const resES = templateService.render('CHECK_IN_PROMPT', {}, 'es-419');
-      expect(resES.title).toBe('Carely — ¿Todo va bien?');
+      expect(resES.title).toBe('Evernear — ¿Todo va bien?');
     });
 
     it('1.4 should handle empty, undefined, or missing parameter maps without crashing', () => {
@@ -188,7 +188,7 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
       // FCM fails (no devices) -> cascades to SMS (no phone) -> Telegram (recipientUserId target)
       expect(userRepo.findOne).toHaveBeenCalledWith({ where: { id: 'non-existent-user-id' } });
       const fcmDelivery = deliveries.find((d) => d.channel === NotificationChannelType.FCM);
-      expect(fcmDelivery?.payload.title).toBe('Carely — Bạn vẫn ổn chứ?');
+      expect(fcmDelivery?.payload.title).toBe('Evernear — Bạn vẫn ổn chứ?');
     });
 
     it('2.2 should resolve default "vi" when user has preferredLanguage as null or undefined', async () => {
@@ -207,7 +207,7 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
         templateName: 'CHECK_IN_PROMPT',
       });
 
-      expect(deliveries[0].payload.title).toBe('Carely — Bạn vẫn ổn chứ?');
+      expect(deliveries[0].payload.title).toBe('Evernear — Bạn vẫn ổn chứ?');
       expect(deliveries[0].payload.body).toContain('Hệ thống chưa nhận thấy hoạt động mới');
     });
 
@@ -227,7 +227,7 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
         language: 'fr',
       });
 
-      expect(deliveries[0].payload.title).toBe('Carely — Tout va bien ?');
+      expect(deliveries[0].payload.title).toBe('Evernear — Tout va bien ?');
     });
 
     it('2.4 [VERIFIED] cascadeFallback dispatches SMS & Telegram when explicit language is provided', async () => {
@@ -259,12 +259,12 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
       expect(smsDelivery!.channel).toBe(NotificationChannelType.SMS);
       expect(smsDelivery!.status).toBe(NotificationDeliveryStatus.SENT);
       expect(smsDelivery!.recipientTarget).toBe('+84988776655');
-      expect(smsDelivery!.payload.title).toBe('Carely — Care Notice');
+      expect(smsDelivery!.payload.title).toBe('Evernear — Care Notice');
 
       expect(smsChannel.send).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientTarget: '+84988776655',
-          title: 'Carely — Care Notice',
+          title: 'Evernear — Care Notice',
         }),
       );
     });
@@ -302,7 +302,7 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
       expect(smsDelivery!.channel).toBe(NotificationChannelType.SMS);
       expect(smsDelivery!.status).toBe(NotificationDeliveryStatus.SENT);
       expect(smsDelivery!.recipientTarget).toBe('+84988776655');
-      expect(smsDelivery!.payload.title).toBe('Carely — ご確認のお願い');
+      expect(smsDelivery!.payload.title).toBe('Evernear — ご確認のお願い');
 
       expect(smsChannel.send).toHaveBeenCalled();
     });

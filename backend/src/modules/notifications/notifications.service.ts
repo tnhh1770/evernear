@@ -488,13 +488,26 @@ export class NotificationsService {
    * Applies exponential backoff: delay = min(300s, 2^attempt * 10s).
    */
   async processRetries(limit = 50): Promise<number> {
-    const failedDeliveries = await this.deliveryRepo.find({
-      where: {
-        status: NotificationDeliveryStatus.FAILED,
-      },
-      order: { failedAt: 'ASC' },
-      take: limit,
-    });
+    let failedDeliveries: NotificationDelivery[];
+    if (typeof this.deliveryRepo.createQueryBuilder === 'function') {
+      failedDeliveries = await this.deliveryRepo
+        .createQueryBuilder('delivery')
+        .where('delivery.status = :status', {
+          status: NotificationDeliveryStatus.FAILED,
+        })
+        .andWhere('delivery.attempt_count < delivery.max_attempts')
+        .orderBy('delivery.failed_at', 'ASC')
+        .take(limit)
+        .getMany();
+    } else {
+      failedDeliveries = await this.deliveryRepo.find({
+        where: {
+          status: NotificationDeliveryStatus.FAILED,
+        },
+        order: { failedAt: 'ASC' },
+        take: limit,
+      });
+    }
 
     const eligible = failedDeliveries.filter(
       (d) => d.attemptCount < d.maxAttempts,
@@ -599,9 +612,13 @@ export class NotificationsService {
           delivery.sentAt = new Date();
           delivery.lastError = null as any;
         } else {
-          delivery.status = NotificationDeliveryStatus.FAILED;
           delivery.failedAt = new Date();
           delivery.lastError = sendResult.error || 'Retry attempt failed';
+          if (delivery.attemptCount >= delivery.maxAttempts) {
+            delivery.status = NotificationDeliveryStatus.EXHAUSTED;
+          } else {
+            delivery.status = NotificationDeliveryStatus.FAILED;
+          }
         }
 
         await this.deliveryRepo.save(delivery);
@@ -610,9 +627,13 @@ export class NotificationsService {
         this.logger.error(
           `Error retrying delivery ${delivery.id}: ${err.message}`,
         );
-        delivery.status = NotificationDeliveryStatus.FAILED;
         delivery.failedAt = new Date();
         delivery.lastError = err.message;
+        if (delivery.attemptCount >= delivery.maxAttempts) {
+          delivery.status = NotificationDeliveryStatus.EXHAUSTED;
+        } else {
+          delivery.status = NotificationDeliveryStatus.FAILED;
+        }
         await this.deliveryRepo.save(delivery);
       }
     }

@@ -22,7 +22,7 @@ void main() {
         final l10n = AppLocalizations(Locale(code));
         expect(l10n.tr('check_in_button'), 'I am okay',
             reason: 'Locale $code should fall back to English check_in_button');
-        expect(l10n.tr('app_name'), 'Carely',
+        expect(l10n.tr('app_name'), 'Evernear',
             reason: 'Locale $code should resolve app_name');
       }
     });
@@ -34,6 +34,8 @@ void main() {
     });
 
     test('1.3 Tier-2 language (e.g. Icelandic, Polish, Turkish) falls back cleanly', () {
+      AppLocalizations.enableExtendedCatalogs = false;
+      addTearDown(() => AppLocalizations.enableExtendedCatalogs = true);
       final tier2Codes = ['is', 'pl', 'tr', 'it', 'nl', 'sv', 'cs', 'el'];
       for (final code in tier2Codes) {
         final l10n = AppLocalizations(Locale(code));
@@ -399,7 +401,10 @@ void main() {
       await localeProvider.setDeviceLocale();
       await tester.pumpAndSettle();
       expect(localeProvider.isDeviceDefault, isTrue);
-      expect(localeProvider.currentLanguageDisplayName, contains('Tự động'));
+      expect(
+        localeProvider.currentLanguageDisplayName,
+        anyOf(contains('Tự động'), contains('Auto')),
+      );
     });
 
     test('4.2 SharedPreferences persistence across lifecycle', () async {

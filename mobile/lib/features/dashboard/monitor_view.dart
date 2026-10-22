@@ -2,163 +2,273 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/relationship_model.dart';
 import '../../core/widgets/calm_empty_state.dart';
 import '../../core/widgets/calm_error_card.dart';
 import '../../core/widgets/calm_loading_widget.dart';
-import '../monitoring/monitoring_settings_screen.dart';
+import '../../core/widgets/evenear_illustrations.dart';
+import '../pairing/qr_invite_screen.dart';
 import '../pairing/qr_scanner_screen.dart';
-import '../demo/showcase_demo_mode.dart';
 import 'dashboard_provider.dart';
+import 'relative_detail_screen.dart';
+
+typedef GuardianView = MonitorView;
 
 class MonitorView extends StatelessWidget {
   const MonitorView({super.key});
-
-  Color _getStateColor(MonitoringState state) {
-    switch (state) {
-      case MonitoringState.ACTIVE:
-      case MonitoringState.RESOLVED:
-        return AppColors.stateActive;
-      case MonitoringState.CHECK_IN_REQUIRED:
-        return AppColors.stateCheckInRequired;
-      case MonitoringState.WARNING:
-      case MonitoringState.CHECK_IN_PENDING:
-      case MonitoringState.GRACE_PERIOD:
-        return AppColors.stateGracePeriod;
-      case MonitoringState.ESCALATED:
-      case MonitoringState.ALERT_TRIGGERED:
-        return AppColors.stateAlertTriggered;
-      case MonitoringState.ACKNOWLEDGED:
-        return AppColors.stateAcknowledged;
-      case MonitoringState.SUSPENDED:
-      case MonitoringState.PAUSED:
-      case MonitoringState.INACTIVE_MONITORING:
-      case MonitoringState.INITIALIZING:
-        return AppColors.statePaused;
-    }
-  }
-
-  String _getStateLabel(MonitoringState state, BuildContext context) {
-    switch (state) {
-      case MonitoringState.ACTIVE:
-      case MonitoringState.RESOLVED:
-        return context.tr('state_active', fallback: AppStrings.stateActive);
-      case MonitoringState.CHECK_IN_REQUIRED:
-        return context.tr('state_check_in_required', fallback: AppStrings.stateCheckInRequired);
-      case MonitoringState.WARNING:
-      case MonitoringState.CHECK_IN_PENDING:
-      case MonitoringState.GRACE_PERIOD:
-        return context.tr('state_grace_period', fallback: AppStrings.stateGracePeriod);
-      case MonitoringState.ESCALATED:
-      case MonitoringState.ALERT_TRIGGERED:
-        return context.tr('state_alert_triggered', fallback: AppStrings.stateAlertTriggered);
-      case MonitoringState.ACKNOWLEDGED:
-        return context.tr('state_acknowledged', fallback: AppStrings.stateAcknowledged);
-      case MonitoringState.SUSPENDED:
-      case MonitoringState.PAUSED:
-        return context.tr('state_paused', fallback: AppStrings.statePaused);
-      default:
-        return context.tr('guardian_stable', fallback: AppStrings.guardianStable);
-    }
-  }
 
   void _showAddRelativeDialog(BuildContext context) {
     final inviteController = TextEditingController();
     final dashboard = Provider.of<DashboardProvider>(context, listen: false);
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.tr('guardian_add_dialog_title', fallback: 'Thêm người thân theo dõi')),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ElevatedButton.icon(
-                key: const Key('scan_qr_button'),
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  final res = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-                  );
-                  if (res == true) {
-                    dashboard.fetchDashboardData();
-                  }
-                },
-                icon: const Icon(Icons.qr_code_scanner),
-                label: Text(ctx.tr('guardian_scan_qr', fallback: 'Quét mã QR người thân')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (ctx) => Scaffold(
+              backgroundColor: AppColors.background,
+              appBar: AppBar(
+                title: Text(
+                  ctx.tr(
+                    'guardian_add_dialog_title',
+                    fallback: 'Thêm người thân theo dõi',
+                  ),
                 ),
+                elevation: 0,
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      ctx.tr('guardian_or_enter_code', fallback: 'Or enter code'),
-                      style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              body: SafeArea(
+                top: false,
+                minimum: const EdgeInsets.only(bottom: 24),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ElevatedButton.icon(
+                          key: const Key('scan_qr_button'),
+                          onPressed: () async {
+                            Navigator.of(ctx).pop();
+                            final res = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(
+                                builder: (_) => const QrScannerScreen(),
+                              ),
+                            );
+                            if (res == true) {
+                              dashboard.fetchDashboardData();
+                            }
+                          },
+                          icon: const Icon(Icons.qr_code_scanner),
+                          label: Text(
+                            ctx.tr(
+                              'guardian_scan_qr',
+                              fallback: 'Quét mã QR người thân',
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          key: const Key('dialog_create_invite_button'),
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const QrInviteScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.qr_code_2_rounded),
+                          label: Text(
+                            ctx.tr(
+                              'guardian_create_own_invite',
+                              fallback: 'Tạo mã mời của tôi',
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text(
+                                ctx.tr(
+                                  'guardian_or_enter_code',
+                                  fallback: 'Hoặc nhập mã',
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          ctx.tr(
+                            'guardian_add_dialog_desc',
+                            fallback: 'Nhập mã ghép đôi từ người thân của bạn',
+                          ),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: inviteController,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: InputDecoration(
+                            hintText: ctx.tr(
+                              'guardian_add_dialog_hint',
+                              fallback: 'VD: CR-ABC12345',
+                            ),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: Text(
+                                ctx.tr('common_cancel', fallback: 'Hủy'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final code = inviteController.text.trim();
+                                if (code.isNotEmpty) {
+                                  final ok = await dashboard.acceptInviteCode(
+                                    code,
+                                  );
+                                  if (ctx.mounted) {
+                                    Navigator.of(ctx).pop();
+                                    final errorMsg =
+                                        dashboard.getErrorMessage(context) ??
+                                        context.tr(
+                                          'guardian_connect_failed',
+                                          fallback:
+                                              'Mã kết nối không hợp lệ hoặc đã hết hạn.',
+                                        );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          ok
+                                              ? context.tr(
+                                                  'guardian_connect_success',
+                                                  fallback:
+                                                      'Kết nối thành công!',
+                                                )
+                                              : errorMsg,
+                                        ),
+                                        backgroundColor: ok
+                                            ? AppColors.stateActive
+                                            : AppColors.stateAlertTriggered,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              child: Text(
+                                ctx.tr(
+                                  'guardian_connect_button',
+                                  fallback: 'Kết nối',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                ctx.tr('guardian_add_dialog_desc', fallback: 'Nhập mã ghép đôi từ người thân của bạn'),
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: inviteController,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  hintText: ctx.tr('guardian_add_dialog_hint', fallback: 'VD: CR-ABC12345'),
-                  border: const OutlineInputBorder(),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(ctx.tr('common_cancel', fallback: 'Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final code = inviteController.text.trim();
-              if (code.isNotEmpty) {
-                final ok = await dashboard.acceptInviteCode(code);
-                if (ctx.mounted) {
-                  Navigator.of(ctx).pop();
-                  final errorMsg = dashboard.getErrorMessage(context) ??
-                      context.tr('guardian_connect_failed', fallback: 'Invalid or expired invitation code.');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(ok
-                          ? context.tr('guardian_connect_success', fallback: 'Connected successfully!')
-                          : errorMsg),
-                      backgroundColor: ok ? AppColors.stateActive : AppColors.stateAlertTriggered,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(ctx.tr('guardian_connect_button', fallback: 'Connect')),
-          ),
-        ],
-      ),
-    );
+        )
+        .whenComplete(() => inviteController.dispose());
+  }
+
+  Map<String, dynamic> _mapRelationshipToCardData(
+    BuildContext context,
+    RelationshipModel rel,
+  ) {
+    final name =
+        rel.monitoredUser?.fullName ??
+        rel.label ??
+        context.tr('monitored_relative_default', fallback: 'Người thân');
+    final state = rel.config?.currentState ?? MonitoringState.ACTIVE;
+    final isAlert = state == MonitoringState.CHECK_IN_REQUIRED ||
+        state == MonitoringState.ALERT_TRIGGERED ||
+        state == MonitoringState.ESCALATED ||
+        state == MonitoringState.WARNING;
+    final lastActivity = rel.config?.lastActivityAt;
+    final formattedTime = lastActivity != null
+        ? DateFormat('HH:mm').format(lastActivity.toLocal())
+        : null;
+    final formattedFull = lastActivity != null
+        ? DateFormat('dd/MM/yyyy • HH:mm').format(lastActivity.toLocal())
+        : context.tr('guardian_no_activity_yet', fallback: 'Chưa có hoạt động');
+    final deviceText = rel.monitoredUser?.fullName != null
+        ? context.tr('guardian_relative_device', fallback: 'Thiết bị người thân')
+        : context.tr('guardian_primary_device', fallback: 'Thiết bị chính');
+    final locationText = rel.config?.locationEnabled == true
+        ? context.tr('guardian_location_when_needed', fallback: 'Vị trí (chỉ khi cần)')
+        : context.tr('guardian_no_location_shared', fallback: 'Không chia sẻ vị trí');
+
+    return {
+      'name': name,
+      'statusText': isAlert
+          ? context.tr('state_check_in_required')
+          : context.tr('monitored_status_protected_pill', fallback: 'Đang được bảo vệ'),
+      'subText': isAlert
+          ? context.tr('guardian_no_confirm_received', fallback: 'Chưa nhận được xác nhận')
+          : (formattedTime != null
+              ? context.tr(
+                  'guardian_confirmed_at_today',
+                  args: {'time': formattedTime},
+                  fallback: 'Lần xác nhận: $formattedTime hôm nay',
+                )
+              : context.tr(
+                  'guardian_no_confirm_today',
+                  fallback: 'Chưa có xác nhận hôm nay',
+                )),
+      'lastConfirmed': formattedFull,
+      'isAlert': isAlert,
+      'device': deviceText,
+      'location': locationText,
+      'phone': rel.monitoredUser?.phone ?? '',
+      'email': rel.monitoredUser?.email ?? '',
+    };
   }
 
   @override
@@ -166,348 +276,279 @@ class MonitorView extends StatelessWidget {
     final dashboard = Provider.of<DashboardProvider>(context);
 
     if (dashboard.isLoading && dashboard.monitoredByMe.isEmpty) {
-      return CalmLoadingWidget(message: context.tr('guardian_loading', fallback: 'Loading relatives list...'));
+      return CalmLoadingWidget(
+        message: context.tr(
+          'guardian_loading',
+          fallback: 'Đang tải danh sách người thân...',
+        ),
+      );
     }
 
     return RefreshIndicator(
+      color: AppColors.primary,
       onRefresh: () => dashboard.fetchDashboardData(),
-      child: SingleChildScrollView(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (dashboard.errorMessage != null) ...[
-              CalmErrorCard(
-                message: dashboard.errorMessage!,
-                onRetry: () => dashboard.fetchDashboardData(),
-              ),
-              const SizedBox(height: 12),
-            ],
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 56),
+        children: [
+          if (dashboard.errorMessage != null) ...[
+            CalmErrorCard(
+              message: dashboard.errorMessage!,
+              onRetry: () => dashboard.fetchDashboardData(),
+            ),
+            const SizedBox(height: 12),
+          ],
 
-            // Top Action Bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  context.tr('guardian_monitored_by_me',
-                      args: {'count': '${dashboard.monitoredByMe.length}'},
-                      fallback: 'Monitoring (${dashboard.monitoredByMe.length})'),
+          // Header Row matching Screen 14 (14_guardian_people_list.png): "Danh sách người thân" + Add icon button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  context.tr(
+                    'guardian_people_list_title',
+                    fallback: 'Danh sách người thân',
+                  ),
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () => _showAddRelativeDialog(context),
-                  icon: const Icon(Icons.person_add_alt_1, size: 20),
-                  label: Text(context.tr('guardian_add_person', fallback: 'Add person')),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                  ),
+              ),
+              IconButton(
+                onPressed: () => _showAddRelativeDialog(context),
+                tooltip: context.tr(
+                  'guardian_add_person',
+                  fallback: 'Thêm người thân',
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+                icon: const Icon(
+                  Icons.person_add_alt_1_outlined,
+                  color: AppColors.textPrimary,
+                  size: 22,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
 
-            if (dashboard.monitoredByMe.isEmpty && !ShowcaseDemoController().isDemoActive)
-              CalmEmptyState(
-                icon: Icons.people_outline,
-                title: context.tr('guardian_empty_title', fallback: 'No loved ones connected'),
-                description: context.tr('guardian_empty_desc',
-                    fallback: 'Connect with parents or relatives living alone to receive safety updates.'),
-                action: ElevatedButton.icon(
-                  onPressed: () => _showAddRelativeDialog(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+          if (dashboard.monitoredByMe.isNotEmpty)
+            ...dashboard.monitoredByMe.map(
+              (rel) => _buildRelativeCard(
+                context,
+                _mapRelationshipToCardData(context, rel),
+                relationship: rel,
+              ),
+            )
+          else
+            CalmEmptyState(
+              icon: Icons.people_outline_rounded,
+              title: context.tr('guardian_empty_title'),
+              description: context.tr('guardian_empty_desc'),
+              action: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  ElevatedButton.icon(
+                    key: const Key('empty_scan_qr_button'),
+                    onPressed: () async {
+                      final res = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder: (_) => const QrScannerScreen(),
+                        ),
+                      );
+                      if (res == true) {
+                        dashboard.fetchDashboardData();
+                      }
+                    },
+                    icon: const Icon(Icons.qr_code_scanner, size: 18),
+                    label: Text(
+                      context.tr('guardian_scan_qr', fallback: 'Quét mã QR'),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
-                  icon: const Icon(Icons.add_link, size: 18),
-                  label: Text(context.tr('guardian_connect_relative', fallback: 'Connect Relative')),
-                ),
-              )
-            else if (ShowcaseDemoController().isDemoActive && dashboard.monitoredByMe.isEmpty)
-              _buildDemoPersonCard(context)
-            else
-              ...dashboard.monitoredByMe.map((rel) => _buildMonitoredPersonCard(context, rel)),
-
-          ],
-        ),
+                  OutlinedButton.icon(
+                    key: const Key('empty_invite_code_button'),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const QrInviteScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.share_outlined, size: 18),
+                    label: Text(
+                      context.tr(
+                        'guardian_create_invite',
+                        fallback: 'Tạo mã mời',
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildMonitoredPersonCard(BuildContext context, RelationshipModel rel) {
-    final monitoredUser = rel.monitoredUser;
-    final config = rel.config;
-    final state = config?.currentState ?? MonitoringState.ACTIVE;
-    final stateColor = _getStateColor(state);
-    final lastActivity = config?.lastMeaningfulActivityAt;
-
-    final formattedLastActivity = lastActivity != null
-        ? DateFormat('HH:mm dd/MM').format(lastActivity.toLocal())
-        : context.tr('guardian_no_activity', fallback: 'No activity yet');
+  Widget _buildRelativeCard(
+    BuildContext context,
+    Map<String, dynamic> data, {
+    RelationshipModel? relationship,
+  }) {
+    final name = data['name'] as String;
+    final statusText = data['statusText'] as String;
+    final subText = data['subText'] as String;
+    final isAlert = data['isAlert'] == true;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: state == MonitoringState.ALERT_TRIGGERED ||
-                  state == MonitoringState.ESCALATED ||
-                  state == MonitoringState.WARNING ||
-                  state == MonitoringState.GRACE_PERIOD
-              ? stateColor.withAlpha(100)
-              : Colors.transparent,
-          width: 1.5,
-        ),
-      ),
       elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
       color: AppColors.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(18.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: Name, Label & Status
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: AppColors.secondaryLight,
-                  child: Text(
-                    (monitoredUser?.fullName ?? 'U').substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        monitoredUser?.fullName ?? context.tr('monitored_relative_default', fallback: 'Relative'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (rel.label != null && rel.label!.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          rel.label!,
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      // Status pill with ample breathing space
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: stateColor.withAlpha(25),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: stateColor.withAlpha(60)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: stateColor,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                _getStateLabel(state, context),
-                                style: TextStyle(
-                                  color: stateColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: AppColors.cardBorder),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => RelativeDetailScreen(
+                relativeData: data,
+                relationship: relationship,
+              ),
             ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: AppColors.divider),
-            const SizedBox(height: 12),
-
-            // Footer: Last activity info & Action button
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 10,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          child: Row(
+            children: [
+              EvenearAvatar(
+                name: name,
+                radius: 28,
+                showStatusDot: false,
+                statusColor: isAlert
+                    ? AppColors.stateCheckInRequired
+                    : AppColors.stateActive,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.access_time, size: 16, color: AppColors.textMuted),
-                    const SizedBox(width: 6),
                     Text(
-                      context.tr('state_last_activity',
-                          args: {'time': formattedLastActivity},
-                          fallback: 'Last activity: $formattedLastActivity'),
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MonitoringSettingsScreen(relationship: rel),
+                      name,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.settings_outlined, size: 16),
-                  label: Text(context.tr('guardian_schedule_and_config', fallback: 'Schedule & Config'), style: const TextStyle(fontSize: 13)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    side: const BorderSide(color: AppColors.divider),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDemoPersonCard(BuildContext context) {
-    final demoController = ShowcaseDemoController();
-    final state = demoController.simulatedState;
-    final stateColor = _getStateColor(state);
-    final lastActivity = DateFormat('HH:mm - dd/MM').format(demoController.lastSimulatedActivity.toLocal());
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: stateColor.withValues(alpha: 0.35),
-          width: 1.5,
-        ),
-      ),
-      elevation: 0,
-      color: AppColors.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(18.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: AppColors.primaryLight,
-                  child: const Text('M', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.tr('demo_guardian_relative_name', fallback: 'Mom (Nguyen Thi Mai)'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    if (relationship?.label != null &&
+                        relationship!.label != name) ...[
                       const SizedBox(height: 2),
                       Text(
-                        context.tr('demo_guardian_relative_status', fallback: 'Monitored & Safe'),
-                        style: const TextStyle(fontSize: 12, color: AppColors.primary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: stateColor.withAlpha(25),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: stateColor.withAlpha(60)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: stateColor,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                _getStateLabel(state, context),
-                                style: TextStyle(color: stateColor, fontWeight: FontWeight.bold, fontSize: 12),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                        relationship.label!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
+                    const SizedBox(height: 4),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: isAlert
+                            ? const Color(0xFFD97736)
+                            : AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subText,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: isAlert
+                            ? const Color(0xFFD97736)
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                    if (relationship != null) ...[
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          Text(
+                            context.tr(
+                              'guardian_risk_zero',
+                              fallback: 'Nguy cơ: 0%',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          Text(
+                            context.tr(
+                              'guardian_alerts_zero',
+                              fallback: '0 cảnh báo',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (relationship != null)
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(
+                    Icons.settings_outlined,
+                    size: 18,
+                    color: AppColors.textMuted,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                const Icon(Icons.battery_charging_full, size: 16, color: AppColors.primary),
-                const SizedBox(width: 6),
-                Text(
-                  context.tr('demo_guardian_relative_battery', fallback: 'Battery: 92% (Charging)'),
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
-                const SizedBox(width: 16),
-                const Icon(Icons.access_time, size: 16, color: AppColors.textMuted),
-                const SizedBox(width: 6),
-                Text(
-                  context.tr('demo_guardian_relative_last_activity',
-                      args: {'time': lastActivity},
-                      fallback: 'Recent: $lastActivity'),
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ],
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textMuted,
+                size: 22,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-

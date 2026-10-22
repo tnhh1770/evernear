@@ -1,6 +1,6 @@
 import 'dart:ui' show Locale;
 
-/// Locale Catalog Registry for Carely
+/// Locale Catalog Registry for Evernear
 ///
 /// Contains comprehensive metadata for 60 world languages with
 /// fast diacritic-insensitive and case-insensitive search.
@@ -190,17 +190,21 @@ class LocaleCatalogRegistry {
   static List<LanguageMetadata> get tier1Languages =>
       allLanguages.where((l) => l.isTier1).toList(growable: false);
 
-  /// Canonical default language (English)
+  /// Canonical default language (Vietnamese)
   static LanguageMetadata get defaultLanguage =>
-      getByCode('en') ?? allLanguages.first;
+      getByCode('vi') ?? allLanguages.first;
 
   /// Supported locales list for MaterialApp
   static List<Locale> get supportedLocales =>
       allLanguages.map((l) => Locale(l.code)).toList(growable: false);
 
-  /// Find language by code (e.g., 'vi', 'en', 'fr')
-  static LanguageMetadata? getByCode(String code) {
-    final lower = code.toLowerCase().trim();
+  /// Find language by code (e.g., 'vi', 'en', 'fr', 'fil' -> 'tl')
+  static LanguageMetadata? getByCode(String? code) {
+    if (code == null) return null;
+    var lower = code.toLowerCase().trim();
+    if (lower == 'fil') {
+      lower = 'tl';
+    }
     for (final lang in allLanguages) {
       if (lang.code.toLowerCase() == lower) return lang;
     }
@@ -208,13 +212,13 @@ class LocaleCatalogRegistry {
   }
 
   /// Alias for getByCode
-  static LanguageMetadata? findByCode(String code) => getByCode(code);
+  static LanguageMetadata? findByCode(String? code) => getByCode(code);
 
   /// Check if a language code is supported
-  static bool isSupported(String code) => getByCode(code) != null;
+  static bool isSupported(String? code) => getByCode(code) != null;
 
   /// Check if a language code is Tier-1
-  static bool isTier1(String code) => getByCode(code)?.isTier1 ?? false;
+  static bool isTier1(String? code) => getByCode(code)?.isTier1 ?? false;
 
   /// Fast diacritic-insensitive and case-insensitive search
   static List<LanguageMetadata> search(String query) {

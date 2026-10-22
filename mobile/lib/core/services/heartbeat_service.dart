@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../constants/api_endpoints.dart';
 import '../network/api_client.dart';
@@ -42,6 +43,11 @@ class HeartbeatService {
   }
 
   Future<bool> sendHeartbeat({bool force = false}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+    } catch (_) {}
+
     final token = await LocalStorage.getAccessToken();
     final deviceId = await LocalStorage.getDeviceId();
     if (token == null || deviceId == null) {

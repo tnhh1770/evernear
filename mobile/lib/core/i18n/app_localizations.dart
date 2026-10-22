@@ -9,13 +9,49 @@ class AppLocalizations {
   final Map<String, String> _activeDictionary;
 
   /// When true, allows accessing all 60 world languages from extendedCatalogs
-  static bool enableExtendedCatalogs = false;
+  static bool _enableExtendedCatalogs = true;
+  static bool get enableExtendedCatalogs => _enableExtendedCatalogs;
+  static set enableExtendedCatalogs(bool value) {
+    if (_enableExtendedCatalogs != value) {
+      _enableExtendedCatalogs = value;
+      _dictionaryCache.clear();
+      _cachedLanguageCode = null;
+      _currentActiveDictionary = null;
+    }
+  }
+
+  /// Canonical default global language code for static standalone lookups
+  static String globalLocaleCode = 'vi';
+
+  /// In-memory cache preserving loaded translation catalogs so each language
+  /// dictionary is loaded once and reused across all instances.
+  static final Map<String, Map<String, String>> _dictionaryCache = {};
+  static String? _cachedLanguageCode;
+  static Map<String, String>? _currentActiveDictionary;
 
   AppLocalizations(this.locale)
-      : _activeDictionary = (enableExtendedCatalogs
-                ? DynamicCatalogs.getAnyCatalog(locale.languageCode)
-                : DynamicCatalogs.getCatalog(locale.languageCode)) ??
-            const {};
+      : _activeDictionary = _resolveAndCacheDictionary(locale.languageCode);
+
+  /// Resolves the dictionary for [rawCode], caching it in memory so it is only loaded once.
+  static Map<String, String> _resolveAndCacheDictionary(String rawCode) {
+    final code = rawCode.toLowerCase();
+    if (_cachedLanguageCode == code && _currentActiveDictionary != null) {
+      return _currentActiveDictionary!;
+    }
+    if (_dictionaryCache.containsKey(code)) {
+      _cachedLanguageCode = code;
+      _currentActiveDictionary = _dictionaryCache[code]!;
+      return _currentActiveDictionary!;
+    }
+    final dict = (enableExtendedCatalogs
+            ? DynamicCatalogs.getAnyCatalog(code)
+            : DynamicCatalogs.getCatalog(code)) ??
+        const {};
+    _dictionaryCache[code] = dict;
+    _cachedLanguageCode = code;
+    _currentActiveDictionary = dict;
+    return dict;
+  }
 
   /// Access AppLocalizations from BuildContext
   static AppLocalizations? of(BuildContext context) {
@@ -26,32 +62,41 @@ class AppLocalizations {
   static const LocalizationsDelegate<AppLocalizations> delegate =
       _AppLocalizationsDelegate();
 
-  /// Canonical default global language code for static standalone lookups
-  static String globalLocaleCode = 'vi';
+  static final RegExp _vietnameseDiacritics = RegExp(
+    r'[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ'
+    r'ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬĐÈÉẺẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴ]',
+  );
+
+  static bool _hasVietnamese(String text) => _vietnameseDiacritics.hasMatch(text);
 
   /// Primary translation resolver
   ///
   /// Resolution Chain:
-  /// 1. Active dictionary (_activeDictionary[key])
-  /// 2. English catalog (enCatalog[key])
-  /// 3. Vietnamese baseline catalog (viCatalog[key])
-  /// 4. Explicit fallback string (if provided)
-  /// 5. Humanized key name (e.g., 'check_in_button' -> 'Check In Button')
+  /// 1. When current locale is 'vi': _activeDictionary[key] ?? viCatalog[key] ?? fallback
+  /// 2. When current locale is NOT 'vi': _activeDictionary[key] ?? enCatalog[key] ?? (isEnglish ? fallback : null) ?? formatKeyName(key)
+  /// Non-Vietnamese locales NEVER evaluate viCatalog[key].
   String tr(
     String key, {
     Map<String, String>? args,
     String? fallback,
   }) {
+    final code = locale.languageCode.toLowerCase();
+    final isVietnamese = code == 'vi';
+    final isEnglish = code == 'en';
+
     String? value = _activeDictionary[key];
 
-    // Tier 2: English fallback
-    value ??= enCatalog[key];
+    if (isVietnamese) {
+      value ??= viCatalog[key] ?? fallback;
+    } else {
+      final safeFallback =
+          (isEnglish && fallback != null && !_hasVietnamese(fallback))
+              ? fallback
+              : null;
+      value ??= enCatalog[key] ?? safeFallback;
+    }
 
-    // Tier 3: Vietnamese canonical baseline
-    value ??= viCatalog[key];
-
-    // Tier 4: Provided fallback or formatted key name
-    value ??= fallback ?? formatKeyName(key);
+    value ??= formatKeyName(key);
 
     // Interpolate arguments if provided
     if (args != null && args.isNotEmpty) {
@@ -69,15 +114,24 @@ class AppLocalizations {
     Map<String, String>? args,
     String? fallback,
   }) {
-    final active = enableExtendedCatalogs
-        ? DynamicCatalogs.getAnyCatalog(globalLocaleCode)
-        : DynamicCatalogs.getCatalog(globalLocaleCode);
-    String? value = active?[key];
+    final code = globalLocaleCode.toLowerCase();
+    final isVietnamese = code == 'vi';
+    final isEnglish = code == 'en';
 
-    // If global is not English/Vietnamese, cascade through en then vi
-    value ??= enCatalog[key];
-    value ??= viCatalog[key];
-    value ??= fallback ?? formatKeyName(key);
+    final active = _resolveAndCacheDictionary(globalLocaleCode);
+    String? value = active[key];
+
+    if (isVietnamese) {
+      value ??= viCatalog[key] ?? fallback;
+    } else {
+      final safeFallback =
+          (isEnglish && fallback != null && !_hasVietnamese(fallback))
+              ? fallback
+              : null;
+      value ??= enCatalog[key] ?? safeFallback;
+    }
+
+    value ??= formatKeyName(key);
 
     if (args != null && args.isNotEmpty) {
       args.forEach((placeholder, replacement) {
@@ -122,7 +176,7 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool shouldReload(_AppLocalizationsDelegate old) => true;
+  bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 /// Extension providing effortless `context.tr(key)` syntax

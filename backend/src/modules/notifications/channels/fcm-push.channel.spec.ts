@@ -77,7 +77,7 @@ describe('FcmPushChannel Unit Tests', () => {
     const res = await channel.send({
       recipientUserId: 'u1',
       recipientTarget: 'real-fcm-device-token-abc',
-      title: 'Thông báo từ Carely',
+      title: 'Thông báo từ Evernear',
       body: 'Không nhận được xác nhận từ người thân.',
       data: {
         templateName: 'ALERT_TRIGGERED',
@@ -92,10 +92,10 @@ describe('FcmPushChannel Unit Tests', () => {
 
     const callArgs = sendMock.mock.calls[0][0];
     expect(callArgs.token).toBe('real-fcm-device-token-abc');
-    expect(callArgs.notification.title).toBe('Thông báo từ Carely');
+    expect(callArgs.notification.title).toBe('Thông báo từ Evernear');
     expect(callArgs.notification.body).toBe('Không nhận được xác nhận từ người thân.');
     expect(callArgs.android.priority).toBe('high');
-    expect(callArgs.android.notification.channelId).toBe('carely_alerts_channel');
+    expect(callArgs.android.notification.channelId).toBe('evernear_alerts_channel');
     expect(callArgs.data.incidentId).toBe('inc-456');
   });
 

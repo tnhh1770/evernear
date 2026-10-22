@@ -71,6 +71,12 @@ import { AuditLog } from './modules/audit/entities/audit-log.entity';
         ],
         synchronize: false, // Use our explicit migrations as single source of truth
         logging: config.get<string>('NODE_ENV') === 'development' ? ['error', 'warn'] : false,
+        extra: {
+          max: Number(config.get('DB_POOL_MAX', 30)),
+          min: Number(config.get('DB_POOL_MIN', 5)),
+          idleTimeoutMillis: Number(config.get('DB_POOL_IDLE_TIMEOUT', 30000)),
+          connectionTimeoutMillis: Number(config.get('DB_POOL_CONN_TIMEOUT', 5000)),
+        },
       }),
     }),
     RedisModule,

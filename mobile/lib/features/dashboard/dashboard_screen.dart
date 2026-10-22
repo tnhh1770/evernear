@@ -2,18 +2,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/network/realtime_service.dart';
+import '../../core/services/web_landing_launcher.dart';
 import '../../core/storage/local_storage.dart';
+import '../../core/widgets/active_account_chip.dart';
+import '../../core/widgets/evenear_illustrations.dart';
 import '../check_in/check_in_screen.dart';
 import '../incidents/incidents_list_screen.dart';
+import '../incidents/incidents_provider.dart';
 import '../settings/settings_screen.dart';
 import 'dashboard_provider.dart';
 import 'monitored_view.dart';
 import 'monitor_view.dart';
-import '../demo/showcase_demo_mode.dart';
-import '../onboarding/product_showcase_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -39,6 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
       if (mounted) {
         Provider.of<DashboardProvider>(context, listen: false).fetchDashboardData();
+        Provider.of<IncidentsProvider>(context, listen: false).fetchIncidents();
       }
     });
   }
@@ -46,6 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _realtimeSub?.cancel();
+    RealtimeService().disconnect();
     super.dispose();
   }
 
@@ -55,7 +58,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final senderUserId = event['userId']?.toString();
       final currentUserId = await LocalStorage.getUserId();
       if (!mounted) return;
-      // Show alert if check-in was confirmed by another member (e.g. monitored member)
       if (senderUserId != null && senderUserId != currentUserId) {
         final rawName = event['userDisplayName']?.toString();
         final name = (rawName != null && rawName.isNotEmpty)
@@ -66,7 +68,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           args: {'name': name},
           fallback: '💚 $name vừa xác nhận: "Tôi vẫn ổn"!',
         );
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
             SnackBar(
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.only(bottom: 90, left: 16, right: 16),
@@ -87,147 +91,140 @@ class _DashboardScreenState extends State<DashboardScreen> {
               duration: const Duration(seconds: 4),
             ),
           );
-        }
       }
+    } else if (type == 'CHECK_IN_PROMPT') {
+      final recipientId = event['recipientUserId']?.toString();
+      final currentUserId = await LocalStorage.getUserId();
+      if (!mounted) return;
+      if (recipientId == null || recipientId == currentUserId) {
+        final promptText = context.tr('check_in_prompt');
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(bottom: 90, left: 16, right: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              content: Row(
+                children: [
+                  const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      promptText,
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.stateCheckInRequired,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+      }
+    } else if (type == 'INCIDENT_CREATED' || type == 'INCIDENT_ESCALATED') {
+      if (!mounted) return;
+      Provider.of<IncidentsProvider>(context, listen: false).fetchIncidents();
+      final alertText = context.tr('incident_missed_check_in');
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 90, left: 16, right: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    alertText,
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.stateAlertTriggered,
+            duration: const Duration(seconds: 6),
+          ),
+        );
     }
+  }
 
   final List<Widget> _screens = const [
     MonitoredView(),
     MonitorView(),
-    IncidentsListScreen(),
-    SettingsScreen(),
+    IncidentsListScreen(isEmbedded: true),
+    SettingsScreen(isEmbedded: true),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final dashboard = Provider.of<DashboardProvider>(context);
-    final currentIndex = dashboard.selectedTabIndex;
+    final currentIndex = context.select<DashboardProvider, int>((p) => p.selectedTabIndex);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.shield_outlined, color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              AppStrings.appName,
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: context.tr('dashboard_demo_tooltip', fallback: 'Intro & Interactive Demo'),
-            icon: const Icon(Icons.campaign_outlined, color: AppColors.primary),
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                backgroundColor: Colors.white,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                builder: (ctx) => SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.explore_outlined, color: AppColors.primary),
-                          title: Text(
-                            context.tr('dashboard_showcase_title', fallback: 'Explore Product Showcase'),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+      appBar: (currentIndex == 2 || currentIndex == 3)
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              title: InkWell(
+                key: const Key('dashboard_landing_link'),
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => WebLandingLauncher.openLanding(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const EvenearHeartLogo(size: 28),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          context.tr('app_name', fallback: 'Evenear'),
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            fontSize: 19,
                           ),
-                          subtitle: Text(
-                            context.tr('dashboard_showcase_desc', fallback: 'Browse feature highlights & overview slides'),
-                          ),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductShowcaseScreen()));
-                          },
                         ),
-                        ListTile(
-                          leading: const Icon(Icons.play_circle_outline, color: AppColors.stateActive),
-                          title: Text(
-                            context.tr('dashboard_demo_mode_title', fallback: 'Enable Presentation Demo Mode'),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            context.tr('dashboard_demo_mode_desc', fallback: 'Simulate system states for demo/recording'),
-                          ),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            ShowcaseDemoController().enableDemo();
-                          },
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
-            onPressed: () => context.read<DashboardProvider>().fetchDashboardData(),
-          ),
-        ],
-        backgroundColor: AppColors.surface,
-        elevation: 0.5,
-      ),
-      body: Column(
-        children: [
-          const ShowcaseDemoBanner(),
-          Expanded(
-            child: IndexedStack(
-              index: currentIndex,
-              children: _screens,
+              ),
+              actions: const [
+                ActiveAccountAppBarAction(compact: true),
+              ],
+              backgroundColor: AppColors.surface,
+              elevation: 0,
+              scrolledUnderElevation: 0.5,
             ),
-          ),
-        ],
+      body: IndexedStack(
+        index: currentIndex,
+        children: _screens,
       ),
-
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: Container(
-        width: 60,
-        height: 60,
+        width: 58,
+        height: 58,
         margin: const EdgeInsets.only(top: 8),
         child: FloatingActionButton(
           shape: const CircleBorder(),
-          elevation: 4,
+          elevation: 3,
           backgroundColor: AppColors.primary,
-          tooltip: context.tr('check_in_button', fallback: 'I am okay'),
+          tooltip: context.tr('check_in_button'),
           onPressed: () {
-            if (ShowcaseDemoController().isDemoActive) {
-              ShowcaseDemoController().performQuickDemoCheckIn();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  margin: const EdgeInsets.only(bottom: 90, left: 16, right: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  content: Text(context.tr('demo_check_in_success', fallback: 'Peace of mind check-in confirmed! (Demo Simulation)')),
-                  backgroundColor: AppColors.stateActive,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-            } else {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CheckInScreen()),
-              );
-            }
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CheckInScreen()),
+            );
           },
           child: const Icon(
             Icons.favorite_rounded,
             color: Colors.white,
-            size: 28,
+            size: 26,
           ),
         ),
       ),
@@ -236,40 +233,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
         notchMargin: 8,
         elevation: 8,
         color: AppColors.surface,
-        padding: EdgeInsets.zero,
-        height: 64,
+        padding: const EdgeInsets.only(bottom: 12),
+        height: 76,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             Expanded(
               child: _buildNavTab(
                 index: 0,
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: context.tr('nav_status', fallback: 'Status'),
+                icon: Icons.home_outlined,
+                activeIcon: Icons.home_rounded,
+                label: context.tr('nav_status'),
               ),
             ),
             Expanded(
               child: _buildNavTab(
                 index: 1,
                 icon: Icons.group_outlined,
-                activeIcon: Icons.group,
-                label: context.tr('nav_family', fallback: 'Family'),
+                activeIcon: Icons.group_rounded,
+                label: context.tr('nav_family'),
               ),
             ),
-            const SizedBox(width: 56), // Notch gap for central circular check-in button
+            const SizedBox(width: 56),
             Expanded(
               child: _buildIncidentsNavTab(
                 index: 2,
-                label: context.tr('nav_incidents', fallback: 'Incidents'),
+                label: context.tr('nav_incidents'),
               ),
             ),
             Expanded(
               child: _buildNavTab(
                 index: 3,
                 icon: Icons.settings_outlined,
-                activeIcon: Icons.settings,
-                label: context.tr('nav_settings', fallback: 'Settings'),
+                activeIcon: Icons.settings_rounded,
+                label: context.tr('nav_settings'),
               ),
             ),
           ],
@@ -284,11 +281,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData activeIcon,
     required String label,
   }) {
-    final dashboard = Provider.of<DashboardProvider>(context);
-    final isSelected = dashboard.selectedTabIndex == index;
+    final isSelected = context.select<DashboardProvider, bool>((p) => p.selectedTabIndex == index);
     final color = isSelected ? AppColors.primary : AppColors.textMuted;
     return InkWell(
-      onTap: () => dashboard.setSelectedTabIndex(index),
+      onTap: () => context.read<DashboardProvider>().setSelectedTabIndex(index),
       borderRadius: BorderRadius.circular(12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -300,7 +296,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label,
             style: TextStyle(
               fontSize: 11,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               color: color,
             ),
             maxLines: 1,
@@ -315,25 +311,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required int index,
     required String label,
   }) {
-    final dashboard = Provider.of<DashboardProvider>(context);
-    final isSelected = dashboard.selectedTabIndex == index;
+    final isSelected = context.select<DashboardProvider, bool>((p) => p.selectedTabIndex == index);
     final color = isSelected ? AppColors.primary : AppColors.textMuted;
     return InkWell(
-      onTap: () => dashboard.setSelectedTabIndex(index),
+      onTap: () => context.read<DashboardProvider>().setSelectedTabIndex(index),
       borderRadius: BorderRadius.circular(12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Selector<DashboardProvider, int>(
-            selector: (_, p) => p.unreadNotificationsCount,
-            builder: (context, count, child) => Badge(
-              isLabelVisible: count > 0,
-              label: Text('$count'),
-              child: child!,
-            ),
+          Selector2<DashboardProvider, IncidentsProvider, ({int count, bool hasIncidents})>(
+            selector: (_, dash, inc) {
+              final dCount = dash.unreadNotificationsCount;
+              final iCount = inc.unreadCount;
+              final hasLoadedFeed = inc.allNotifications.isNotEmpty || inc.readCount > 0;
+              final effectiveCount = hasLoadedFeed
+                  ? iCount
+                  : (iCount > dCount ? iCount : dCount);
+              final hasIncidents = hasLoadedFeed
+                  ? inc.hasUnreadIncidents
+                  : (inc.hasUnreadIncidents || dash.activeIncidentsCount > 0);
+              return (count: effectiveCount, hasIncidents: hasIncidents);
+            },
+            builder: (context, data, child) {
+              final count = data.count;
+              final badgeColor = data.hasIncidents
+                  ? AppColors.stateAlertTriggered
+                  : AppColors.stateActive;
+              return Badge(
+                isLabelVisible: count > 0,
+                label: Text('$count'),
+                backgroundColor: badgeColor,
+                textColor: Colors.white,
+                child: child!,
+              );
+            },
             child: Icon(
-              isSelected ? Icons.notifications : Icons.notifications_none_outlined,
+              isSelected ? Icons.notifications_rounded : Icons.notifications_none_outlined,
               color: color,
               size: 24,
             ),
@@ -343,7 +357,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label,
             style: TextStyle(
               fontSize: 11,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               color: color,
             ),
             maxLines: 1,

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import 'heartbeat_service.dart';
 import 'sync_queue_service.dart';
@@ -13,6 +14,7 @@ void callbackDispatcher() {
 
     switch (taskName) {
       case BackgroundService.periodicHeartbeatTask:
+      case 'vn.carely.heartbeat.periodic':
       case Workmanager.iOSBackgroundTask:
         return await BackgroundService.executeBackgroundTask();
       default:
@@ -27,7 +29,7 @@ class BackgroundService {
   factory BackgroundService() => _instance;
   BackgroundService._internal();
 
-  static const String periodicHeartbeatTask = 'vn.carely.heartbeat.periodic';
+  static const String periodicHeartbeatTask = 'vn.evernear.heartbeat.periodic';
   bool _isRegistered = false;
 
   bool get isRegistered => _isRegistered;
@@ -82,6 +84,14 @@ class BackgroundService {
   static Future<bool> executeBackgroundTask() async {
     debugPrint('[BackgroundService] Executing background task routine...');
     try {
+      // Reload SharedPreferences cache from disk to ensure background isolate reads fresh tokens
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.reload();
+      } catch (e) {
+        debugPrint('[BackgroundService] SharedPreferences reload warning: $e');
+      }
+
       // 1. Opportunistic reachability Heartbeat (Weight = 0.0)
       final heartbeatOk = await HeartbeatService().sendHeartbeat();
       debugPrint(

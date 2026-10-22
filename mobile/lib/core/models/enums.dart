@@ -219,11 +219,9 @@ enum IncidentReason {
   INACTIVITY,
   MISSED_CHECK_IN,
   DEVICE_OFFLINE,
-  MANUAL_SOS,
 
   // Legacy / UI aliases
   EXTENDED_INACTIVITY,
-  MANUAL_TRIGGER,
   CRITICAL_BATTERY_INACTIVITY;
 
   static IncidentReason fromString(String? value) {
@@ -239,10 +237,6 @@ enum IncidentReason {
         return IncidentReason.DEVICE_OFFLINE;
       case 'CRITICAL_BATTERY_INACTIVITY':
         return IncidentReason.CRITICAL_BATTERY_INACTIVITY;
-      case 'MANUAL_SOS':
-        return IncidentReason.MANUAL_SOS;
-      case 'MANUAL_TRIGGER':
-        return IncidentReason.MANUAL_TRIGGER;
       default:
         return IncidentReason.INACTIVITY;
     }

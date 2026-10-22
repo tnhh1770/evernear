@@ -2,22 +2,27 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Incident } from './entities/incident.entity';
+import { IncidentEvent } from './entities/incident-event.entity';
 import { IncidentEventService } from './incident-event.service';
 import { IncidentStateMachine } from './incident-state-machine';
 import { MonitoringRelationship } from '../monitoring/entities/monitoring-relationship.entity';
 import { MonitoringConfig } from '../monitoring/entities/monitoring-config.entity';
 import { MonitoringStateMachine } from '../monitoring/monitoring-state-machine';
 import { RealtimeService } from '../realtime/realtime.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   IncidentStatus,
   IncidentReason,
   IncidentEventType,
   MonitoringState,
+  RelationshipStatus,
 } from '../../common/enums';
 
 @Injectable()
@@ -32,7 +37,10 @@ export class IncidentsService {
     @InjectRepository(MonitoringConfig)
     private readonly configRepo: Repository<MonitoringConfig>,
     private readonly eventService: IncidentEventService,
+    @Optional()
     private readonly realtimeService?: RealtimeService,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
   ) {}
 
   async createIncident(params: {
@@ -44,6 +52,8 @@ export class IncidentsService {
     lastHeartbeatAt?: Date;
     lastLocationId?: string;
     checkInDeadline?: Date;
+    triggeredByUserId?: string;
+    note?: string;
   }): Promise<Incident> {
     const now = new Date();
     const incident = this.incidentRepo.create({
@@ -65,6 +75,8 @@ export class IncidentsService {
     await this.eventService.logEvent(saved.id, IncidentEventType.INCIDENT_CREATED, {
       reason: params.reason,
       riskScore: params.riskScore,
+      ...(params.triggeredByUserId ? { triggeredByUserId: params.triggeredByUserId } : {}),
+      ...(params.note ? { note: params.note } : {}),
     });
 
     if (this.realtimeService) {
@@ -110,7 +122,12 @@ export class IncidentsService {
     return incident;
   }
 
-  async listIncidents(requestingUserId: string, status?: IncidentStatus) {
+  async listIncidents(
+    requestingUserId: string,
+    status?: IncidentStatus,
+    limit: number = 50,
+    offset: number = 0,
+  ) {
     // Find all relationships where requestingUserId is either monitor or monitoredUser
     const relationships = await this.relationshipRepo.find({
       where: [
@@ -139,33 +156,39 @@ export class IncidentsService {
     }
 
     query.orderBy('incident.detectedAt', 'DESC');
+    query.take(Math.min(Number(limit) || 50, 100));
+    if (offset && Number(offset) > 0) {
+      query.skip(Number(offset));
+    }
 
     return query.getMany();
   }
 
-  async acknowledgeIncident(monitorIdOrIncidentId: string, incidentIdOrMonitorId: string): Promise<Incident> {
-    // Support both (monitorId, incidentId) and (incidentId, monitorId)
+  async acknowledgeIncident(actorIdOrIncidentId: string, incidentIdOrActorId: string): Promise<Incident> {
+    // Support both (actorId, incidentId) and (incidentId, actorId)
     let incident = await this.incidentRepo.findOne({
-      where: { id: incidentIdOrMonitorId },
+      where: { id: incidentIdOrActorId },
       relations: { relationship: true },
     });
-    let monitorId = monitorIdOrIncidentId;
+    let actorId = actorIdOrIncidentId;
 
     if (!incident) {
       incident = await this.incidentRepo.findOne({
-        where: { id: monitorIdOrIncidentId },
+        where: { id: actorIdOrIncidentId },
         relations: { relationship: true },
       });
-      monitorId = incidentIdOrMonitorId;
+      actorId = incidentIdOrActorId;
     }
 
     if (!incident) {
       throw new NotFoundException('Incident not found');
     }
 
-    // Only monitor can acknowledge
-    if (incident.relationship.monitorId !== monitorId) {
-      throw new ForbiddenException('Only the designated monitor can acknowledge this incident');
+    // Strict RBAC: Only the monitor (guardian) can acknowledge an incident
+    const isMonitor = incident.relationship?.monitorId === actorId;
+
+    if (!isMonitor) {
+      throw new ForbiddenException('Only guardians/monitors can acknowledge this incident');
     }
 
     IncidentStateMachine.assertTransition(incident.status, IncidentStatus.ACKNOWLEDGED);
@@ -173,7 +196,7 @@ export class IncidentsService {
     const now = new Date();
     incident.status = IncidentStatus.ACKNOWLEDGED;
     incident.acknowledgedAt = now;
-    incident.acknowledgedBy = monitorId;
+    incident.acknowledgedBy = actorId;
 
     const saved = await this.incidentRepo.save(incident);
 
@@ -197,7 +220,7 @@ export class IncidentsService {
     await this.eventService.logEvent(
       incident.id,
       IncidentEventType.MONITOR_ACKNOWLEDGED,
-      { acknowledgedBy: monitorId, timestamp: now.toISOString() },
+      { acknowledgedBy: actorId, timestamp: now.toISOString() },
     );
 
     if (this.realtimeService) {
@@ -205,7 +228,7 @@ export class IncidentsService {
         .emitToRelationship(saved.relationshipId, {
           type: 'INCIDENT_ACKNOWLEDGED',
           incidentId: saved.id,
-          acknowledgedBy: monitorId,
+          acknowledgedBy: actorId,
           acknowledgedAt: now.toISOString(),
         })
         .catch(() => {});
@@ -239,7 +262,7 @@ export class IncidentsService {
     }
 
     const isMonitoredUser = incident.userId === userId;
-    const isMonitor = incident.relationship.monitorId === userId;
+    const isMonitor = incident.relationship?.monitorId === userId;
 
     if (!isMonitoredUser && !isMonitor) {
       throw new ForbiddenException('Unauthorized to resolve this incident');
@@ -298,5 +321,102 @@ export class IncidentsService {
     }
 
     return saved;
+  }
+
+  async deleteIncident(
+    userId: string,
+    id: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const incident = await this.incidentRepo.findOne({
+      where: { id },
+      relations: { relationship: true },
+    });
+
+    if (!incident) {
+      throw new NotFoundException('Incident not found');
+    }
+
+    // Authorization check: Must be the monitored user or the monitor/guardian
+    const isMonitoredUser = incident.userId === userId;
+    const isMonitor = incident.relationship?.monitorId === userId;
+
+    if (!isMonitoredUser && !isMonitor) {
+      throw new ForbiddenException('You are not authorized to delete this incident');
+    }
+
+    // Clean up associated incident events (cascading cleanup)
+    await this.incidentRepo.manager.delete(IncidentEvent, { incidentId: id });
+
+    // Delete incident
+    await this.incidentRepo.delete(id);
+
+    // Optional realtime notification
+    if (this.realtimeService && incident.relationshipId) {
+      this.realtimeService
+        .emitToRelationship(incident.relationshipId, {
+          type: 'INCIDENT_DELETED',
+          incidentId: id,
+        })
+        .catch(() => {});
+    }
+
+    return {
+      success: true,
+      message: 'Incident deleted',
+    };
+  }
+
+  async clearAllIncidents(
+    userId: string,
+  ): Promise<{ success: boolean; count: number }> {
+    // Find all relationships where requesting user is either monitor or monitoredUser
+    const relationships = await this.relationshipRepo.find({
+      where: [
+        { monitorId: userId },
+        { monitoredUserId: userId },
+      ],
+    });
+
+    if (relationships.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const relationshipIds = relationships.map((r) => r.id);
+
+    const incidents = await this.incidentRepo.find({
+      where: { relationshipId: In(relationshipIds) },
+      select: { id: true, relationshipId: true },
+    });
+
+    if (incidents.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const incidentIds = incidents.map((i) => i.id);
+
+    // Clean up associated incident events
+    await this.incidentRepo.manager.delete(IncidentEvent, {
+      incidentId: In(incidentIds),
+    });
+
+    // Delete incidents
+    await this.incidentRepo.delete({ id: In(incidentIds) });
+
+    // Optional realtime notifications
+    if (this.realtimeService) {
+      for (const relId of relationshipIds) {
+        this.realtimeService
+          .emitToRelationship(relId, {
+            type: 'INCIDENTS_CLEARED',
+            count: incidentIds.length,
+          })
+          .catch(() => {});
+      }
+    }
+
+    return {
+      success: true,
+      count: incidentIds.length,
+    };
   }
 }

@@ -1,5 +1,5 @@
 import { MonitoringScheduleWindow } from './entities/monitoring-schedule-window.entity';
-import { toZonedTime, fromZonedTime, format } from 'date-fns-tz';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 export class MonitoringScheduler {
   /**
@@ -55,7 +55,9 @@ export class MonitoringScheduler {
     const { zonedDate } = this.getSafeZonedDate(date, timezone);
     const currentDayOfWeek = zonedDate.getDay(); // 0 = Sun, 1 = Mon ...
     const yesterdayDayOfWeek = (currentDayOfWeek + 6) % 7;
-    const currentTimeStr = format(zonedDate, 'HH:mm'); // e.g. "14:30"
+    const h = String(zonedDate.getHours()).padStart(2, '0');
+    const m = String(zonedDate.getMinutes()).padStart(2, '0');
+    const currentTimeStr = `${h}:${m}`;
 
     for (const win of enabledWindows) {
       if (win.startTime <= win.endTime) {
@@ -155,5 +157,131 @@ export class MonitoringScheduler {
     }
 
     return earliestNext || new Date(date.getTime() + 60 * 60 * 1000);
+  }
+
+  /**
+   * Calculate elapsed awake/active minutes between lastActive and now,
+   * discounting overnight/quiet hours so seniors waking up after quiet hours
+   * do not experience false check-in prompts or alarms.
+   */
+  public static calculateActiveInactiveMinutes(
+    lastActive: Date,
+    now: Date,
+    windows: MonitoringScheduleWindow[],
+    timezone: string = 'Asia/Ho_Chi_Minh',
+  ): number {
+    if (!lastActive || isNaN(lastActive.getTime()) || !now || isNaN(now.getTime())) {
+      return 0;
+    }
+    if (lastActive.getTime() >= now.getTime()) {
+      return 0;
+    }
+    if (!windows || windows.length === 0) {
+      return Math.floor((now.getTime() - lastActive.getTime()) / (60 * 1000));
+    }
+
+    const enabledWindows = windows.filter((w) => w.isEnabled);
+    if (enabledWindows.length === 0) {
+      return 0;
+    }
+
+    const { effectiveTimezone: effectiveTz } = this.getSafeZonedDate(now, timezone);
+
+    let startMs = lastActive.getTime();
+    const maxLookbackMs = 30 * 24 * 60 * 60 * 1000;
+    if (now.getTime() - startMs > maxLookbackMs) {
+      startMs = now.getTime() - maxLookbackMs;
+    }
+
+    const startZoned = toZonedTime(new Date(startMs), effectiveTz);
+    const endZoned = toZonedTime(now, effectiveTz);
+
+    const curDate = new Date(startZoned);
+    curDate.setHours(0, 0, 0, 0);
+
+    const lastDay = new Date(endZoned);
+    lastDay.setHours(0, 0, 0, 0);
+
+    let totalActiveMs = 0;
+
+    while (curDate.getTime() <= lastDay.getTime()) {
+      const dow = curDate.getDay();
+      const yDow = (dow + 6) % 7;
+      const dayIntervals: Array<{ start: number; end: number }> = [];
+
+      for (const win of enabledWindows) {
+        if (!win.startTime || !win.endTime) continue;
+        const [startH, startM] = win.startTime.split(':').map(Number);
+        const [endH, endM] = win.endTime.split(':').map(Number);
+
+        if (win.startTime <= win.endTime) {
+          // Normal daytime window on current day
+          if (win.dayOfWeek === dow) {
+            const winStartLocal = new Date(curDate);
+            winStartLocal.setHours(startH, startM, 0, 0);
+            const winEndLocal = new Date(curDate);
+            winEndLocal.setHours(endH, endM, 0, 0);
+
+            const sUtc = fromZonedTime(winStartLocal, effectiveTz).getTime();
+            const eUtc = fromZonedTime(winEndLocal, effectiveTz).getTime();
+            if (eUtc > sUtc) {
+              dayIntervals.push({ start: sUtc, end: eUtc });
+            }
+          }
+        } else {
+          // Overnight window spanning midnight into the next day
+          // 1. Evening portion (start day): currentDayOfWeek matches win.dayOfWeek
+          if (win.dayOfWeek === dow) {
+            const winStartLocal = new Date(curDate);
+            winStartLocal.setHours(startH, startM, 0, 0);
+            const winEndLocal = new Date(curDate);
+            winEndLocal.setHours(24, 0, 0, 0);
+
+            const sUtc = fromZonedTime(winStartLocal, effectiveTz).getTime();
+            const eUtc = fromZonedTime(winEndLocal, effectiveTz).getTime();
+            if (eUtc > sUtc) {
+              dayIntervals.push({ start: sUtc, end: eUtc });
+            }
+          }
+          // 2. Morning portion (following day): yesterday matches win.dayOfWeek
+          if (win.dayOfWeek === yDow) {
+            const winStartLocal = new Date(curDate);
+            winStartLocal.setHours(0, 0, 0, 0);
+            const winEndLocal = new Date(curDate);
+            winEndLocal.setHours(endH, endM, 0, 0);
+
+            const sUtc = fromZonedTime(winStartLocal, effectiveTz).getTime();
+            const eUtc = fromZonedTime(winEndLocal, effectiveTz).getTime();
+            if (eUtc > sUtc) {
+              dayIntervals.push({ start: sUtc, end: eUtc });
+            }
+          }
+        }
+      }
+
+      if (dayIntervals.length > 0) {
+        dayIntervals.sort((a, b) => a.start - b.start);
+        const merged: Array<{ start: number; end: number }> = [];
+        for (const intv of dayIntervals) {
+          if (!merged.length || intv.start > merged[merged.length - 1].end) {
+            merged.push({ start: intv.start, end: intv.end });
+          } else {
+            merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, intv.end);
+          }
+        }
+
+        for (const intv of merged) {
+          const overlapStart = Math.max(startMs, intv.start);
+          const overlapEnd = Math.min(now.getTime(), intv.end);
+          if (overlapEnd > overlapStart) {
+            totalActiveMs += (overlapEnd - overlapStart);
+          }
+        }
+      }
+
+      curDate.setDate(curDate.getDate() + 1);
+    }
+
+    return Math.floor(totalActiveMs / (60 * 1000));
   }
 }

@@ -112,11 +112,13 @@ export class MonitoringService {
 
     const rel = await this.getRelationship(monitorId, savedRel.id);
     if (this.realtimeService) {
-      this.realtimeService.emitToRelationship(savedRel.id, {
-        type: RealtimeEventType.RELATIONSHIP_UPDATED,
-        relationshipId: savedRel.id,
-        status: savedRel.status,
-      });
+      this.realtimeService
+        .emitToRelationship(savedRel.id, {
+          type: RealtimeEventType.RELATIONSHIP_UPDATED,
+          relationshipId: savedRel.id,
+          status: savedRel.status,
+        })
+        .catch(() => {});
     }
 
     return rel;
@@ -373,11 +375,13 @@ export class MonitoringService {
     });
 
     if (this.realtimeService && relationship) {
-      this.realtimeService.emitToRelationship(relationship.id, {
-        type: RealtimeEventType.RELATIONSHIP_UPDATED,
-        relationshipId: relationship.id,
-        status: relationship.status,
-      });
+      this.realtimeService
+        .emitToRelationship(relationship.id, {
+          type: RealtimeEventType.RELATIONSHIP_UPDATED,
+          relationshipId: relationship.id,
+          status: relationship.status,
+        })
+        .catch(() => {});
     }
 
     return relationship;
@@ -453,11 +457,13 @@ export class MonitoringService {
 
     const updatedRel = await this.getRelationship(userId, id);
     if (this.realtimeService) {
-      this.realtimeService.emitToRelationship(id, {
-        type: RealtimeEventType.RELATIONSHIP_UPDATED,
-        relationshipId: id,
-        status: updatedRel.status,
-      });
+      this.realtimeService
+        .emitToRelationship(id, {
+          type: RealtimeEventType.RELATIONSHIP_UPDATED,
+          relationshipId: id,
+          status: updatedRel.status,
+        })
+        .catch(() => {});
     }
 
     return updatedRel;
@@ -503,7 +509,7 @@ export class MonitoringService {
     if (dto.requireCheckIn !== undefined) {
       config.requireCheckIn = dto.requireCheckIn;
     }
-    if (dto.locationEnabled !== undefined) {
+    if (dto.locationEnabled !== undefined && dto.locationEnabled !== config.locationEnabled) {
       // Privacy check: only Monitored User can toggle location consent
       if (rel.monitoredUserId !== userId) {
         throw new ForbiddenException('Only the monitored user can grant or revoke location sharing permission');
@@ -516,27 +522,32 @@ export class MonitoringService {
 
     await this.configRepo.save(config);
 
-    if (dto.scheduleWindows && Array.isArray(dto.scheduleWindows)) {
-      await this.windowRepo.delete({ configId: config.id });
-      const newWindows = dto.scheduleWindows.map((w) =>
-        this.windowRepo.create({
-          configId: config.id,
-          dayOfWeek: w.dayOfWeek,
-          startTime: w.startTime,
-          endTime: w.endTime,
-          isEnabled: w.isEnabled,
-        }),
-      );
-      await this.windowRepo.save(newWindows);
+    const scheduleWindows = dto.scheduleWindows;
+    if (scheduleWindows && Array.isArray(scheduleWindows)) {
+      await this.windowRepo.manager.transaction(async (manager) => {
+        await manager.delete(MonitoringScheduleWindow, { configId: config.id });
+        const newWindows = scheduleWindows.map((w) =>
+          manager.create(MonitoringScheduleWindow, {
+            configId: config.id,
+            dayOfWeek: w.dayOfWeek,
+            startTime: w.startTime,
+            endTime: w.endTime,
+            isEnabled: w.isEnabled,
+          }),
+        );
+        await manager.save(MonitoringScheduleWindow, newWindows);
+      });
     }
 
     const updatedConfig = await this.getConfig(userId, relationshipId);
     if (this.realtimeService) {
-      this.realtimeService.emitToRelationship(relationshipId, {
-        type: RealtimeEventType.MONITORING_CONFIG_UPDATED,
-        relationshipId,
-        config: updatedConfig,
-      });
+      this.realtimeService
+        .emitToRelationship(relationshipId, {
+          type: RealtimeEventType.MONITORING_CONFIG_UPDATED,
+          relationshipId,
+          config: updatedConfig,
+        })
+        .catch(() => {});
     }
 
     return updatedConfig;
@@ -554,11 +565,13 @@ export class MonitoringService {
     const saved = await this.configRepo.save(config);
 
     if (this.realtimeService && saved.relationshipId) {
-      this.realtimeService.emitToRelationship(saved.relationshipId, {
-        type: RealtimeEventType.MONITORING_CONFIG_UPDATED,
-        relationshipId: saved.relationshipId,
-        config: saved,
-      });
+      this.realtimeService
+        .emitToRelationship(saved.relationshipId, {
+          type: RealtimeEventType.MONITORING_CONFIG_UPDATED,
+          relationshipId: saved.relationshipId,
+          config: saved,
+        })
+        .catch(() => {});
     }
 
     return saved;

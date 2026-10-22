@@ -115,38 +115,128 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
   void _showManualInputDialog() {
     _manualController.clear();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.tr('qr_scanner_manual_dialog_title', fallback: 'Enter Connection Code')),
-        content: SingleChildScrollView(
-          child: TextField(
-            key: const Key('manual_code_input_field'),
-            controller: _manualController,
-            textCapitalization: TextCapitalization.characters,
-            decoration: InputDecoration(
-              hintText: ctx.tr('guardian_add_dialog_hint', fallback: 'VD: CR-ABC12345'),
-              border: const OutlineInputBorder(),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: Text(
+              ctx.tr(
+                'qr_scanner_manual_dialog_title',
+                fallback: 'Enter Connection Code',
+              ),
+            ),
+            elevation: 0,
+          ),
+          body: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.only(bottom: 24),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryLight,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.keyboard_outlined,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            ctx.tr(
+                              'qr_scanner_manual_dialog_title',
+                              fallback: 'Enter Connection Code',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      key: const Key('manual_code_input_field'),
+                      controller: _manualController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: AppColors.inputFill,
+                        hintText: ctx.tr('guardian_add_dialog_hint'),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: AppColors.cardBorder,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: AppColors.cardBorder,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: Text(
+                            ctx.tr('common_cancel', fallback: 'Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          key: const Key('manual_code_submit_button'),
+                          onPressed: () {
+                            final code = _manualController.text.trim();
+                            if (code.isNotEmpty) {
+                              Navigator.of(ctx).pop();
+                              _processScannedCode(code);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: const StadiumBorder(),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            ctx.tr(
+                              'guardian_connect_button',
+                              fallback: 'Connect',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(ctx.tr('common_cancel', fallback: 'Cancel')),
-          ),
-          ElevatedButton(
-            key: const Key('manual_code_submit_button'),
-            onPressed: () {
-              final code = _manualController.text.trim();
-              if (code.isNotEmpty) {
-                Navigator.of(ctx).pop();
-                _processScannedCode(code);
-              }
-            },
-            child: Text(ctx.tr('guardian_connect_button', fallback: 'Connect')),
-          ),
-        ],
       ),
     );
   }
@@ -163,7 +253,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             child: CalmErrorCard(
               message: context.tr('qr_permission_needed',
                   fallback:
-                      'Carely needs camera access to scan connection QR codes. You can grant access in Settings or enter the code manually.'),
+                      'Evernear needs camera access to scan connection QR codes. You can grant access in Settings or enter the code manually.'),
               retryText: context.tr('qr_scanner_manual_action', fallback: 'Enter code manually'),
               onRetry: _showManualInputDialog,
             ),
@@ -174,43 +264,102 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
     if (_isTestEnvironment) {
       return Scaffold(
-        appBar: AppBar(title: Text(context.tr('qr_scanner_connect_title', fallback: 'Scan Connection QR')), elevation: 0),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: Text(context.tr('qr_scanner_connect_title', fallback: 'Scan Connection QR')),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+        ),
         body: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.qr_code_scanner, size: 64, color: AppColors.primary),
-                const SizedBox(height: 16),
-                Text(context.tr('qr_simulated_title', fallback: 'Safe Camera Simulation Mode')),
-                const SizedBox(height: 24),
-                TextField(
-                  key: const Key('simulated_qr_input'),
-                  controller: _manualController,
-                  decoration: InputDecoration(
-                    labelText: context.tr('qr_simulated_label', fallback: 'Simulated QR String'),
-                    border: const OutlineInputBorder(),
+            child: Container(
+              padding: const EdgeInsets.all(24.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.cardBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  key: const Key('simulated_qr_submit'),
-                  onPressed: () {
-                    if (_manualController.text.isNotEmpty) {
-                      _processScannedCode(_manualController.text);
-                    }
-                  },
-                  child: Text(context.tr('qr_simulated_submit', fallback: 'Trigger Simulated Scan')),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  key: const Key('open_manual_input_button'),
-                  onPressed: _showManualInputDialog,
-                  icon: const Icon(Icons.keyboard_outlined),
-                  label: Text(context.tr('qr_enter_code_manually', fallback: 'Enter code manually')),
-                ),
-              ],
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.qr_code_scanner_rounded, size: 48, color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.tr('qr_simulated_title', fallback: 'Safe Camera Simulation Mode'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    key: const Key('simulated_qr_input'),
+                    controller: _manualController,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.inputFill,
+                      labelText: context.tr('qr_simulated_label', fallback: 'Simulated QR String'),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.cardBorder),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      key: const Key('simulated_qr_submit'),
+                      onPressed: () {
+                        if (_manualController.text.isNotEmpty) {
+                          _processScannedCode(_manualController.text);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
+                      ),
+                      child: Text(context.tr('qr_simulated_submit', fallback: 'Trigger Simulated Scan')),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      key: const Key('open_manual_input_button'),
+                      onPressed: _showManualInputDialog,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primaryLight),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: const StadiumBorder(),
+                      ),
+                      icon: const Icon(Icons.keyboard_outlined, size: 18),
+                      label: Text(context.tr('qr_enter_code_manually', fallback: 'Enter code manually')),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -257,24 +406,26 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
           // Bottom Manual Input Bar
           Positioned(
-            bottom: 36,
+            bottom: 48,
             left: 24,
             right: 24,
-            child: ElevatedButton.icon(
+            child: SafeArea(
+              top: false,
+              child: ElevatedButton.icon(
               key: const Key('open_manual_input_button'),
               onPressed: _showManualInputDialog,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.9),
+                backgroundColor: Colors.white,
                 foregroundColor: AppColors.textPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                shape: const StadiumBorder(),
+                elevation: 4,
               ),
-              icon: const Icon(Icons.keyboard_outlined),
+              icon: const Icon(Icons.keyboard_outlined, color: AppColors.primary),
               label: Text(
                 context.tr('qr_enter_code_manually', fallback: 'Enter code manually'),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
               ),
             ),
           ),
@@ -301,20 +452,20 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             width: cutOutSize,
             height: cutOutSize,
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primary, width: 2.5),
-              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.primary, width: 3),
+              borderRadius: BorderRadius.circular(24),
             ),
           ),
           const SizedBox(height: 24),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.black.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              context.tr('qr_point_camera', fallback: 'Point camera at your relative\\'),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              context.tr('qr_point_camera'),
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
         ],

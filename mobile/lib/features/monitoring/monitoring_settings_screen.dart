@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/relationship_model.dart';
 import '../../core/models/schedule_window_model.dart';
 import '../../core/network/api_client.dart';
+import '../../core/storage/local_storage.dart';
+import '../../core/widgets/active_account_chip.dart';
 import '../../core/widgets/calm_error_card.dart';
+import '../auth/auth_provider.dart';
+import '../dashboard/dashboard_provider.dart';
 
 class MonitoringSettingsScreen extends StatefulWidget {
-  final RelationshipModel relationship;
+  final RelationshipModel? relationship;
+  final int? initialSelectedDay;
 
-  const MonitoringSettingsScreen({super.key, required this.relationship});
+  const MonitoringSettingsScreen({
+    super.key,
+    this.relationship,
+    this.initialSelectedDay,
+  });
 
   @override
   State<MonitoringSettingsScreen> createState() => _MonitoringSettingsScreenState();
@@ -24,10 +33,13 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
   late bool _locationEnabled;
   late String _timezone;
   late Map<int, ScheduleWindowModel> _windowsMap;
-  int _selectedDayOfWeek = 1; // Default to Monday (T2)
+  late int _selectedDayOfWeek;
+  List<String> _reminderTimes = ['09:00', '15:00', '20:00'];
   bool _isSaving = false;
   String? _saveErrorMessage;
   bool _isCustomGracePeriod = false;
+  bool _pauseWhenTraveling = false;
+  bool _lowBatteryAlert = true;
 
   // Weekday ordering for Vietnam: Monday (1) to Sunday (0)
   static const List<int> _dayOrder = [1, 2, 3, 4, 5, 6, 0];
@@ -35,13 +47,78 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    final config = widget.relationship.config;
+    final config = widget.relationship?.config;
     _inactivityThreshold = config?.inactivityThresholdMinutes ?? 180;
     _checkInGracePeriod = config?.checkInGracePeriodMinutes ?? 30;
     _locationEnabled = config?.locationEnabled ?? true;
     _timezone = config?.timezone ?? 'Asia/Ho_Chi_Minh';
 
-    _initWindows(config?.scheduleWindows ?? []);
+    final windows = config?.scheduleWindows ?? [];
+    if (widget.initialSelectedDay != null) {
+      _selectedDayOfWeek = widget.initialSelectedDay!;
+    } else if (windows.isNotEmpty) {
+      _selectedDayOfWeek = windows.first.dayOfWeek;
+    } else {
+      _selectedDayOfWeek = DateTime.now().weekday % 7;
+    }
+
+    _initWindows(windows);
+
+    if (widget.relationship == null) {
+      _loadSelfMonitoringConfig();
+    }
+  }
+
+  Future<void> _loadSelfMonitoringConfig() async {
+    final selfConfig = await LocalStorage.getSelfMonitoringConfig();
+    if (selfConfig != null && mounted) {
+      setState(() {
+        if (selfConfig['inactivityThresholdMinutes'] != null) {
+          final val = selfConfig['inactivityThresholdMinutes'];
+          _inactivityThreshold = (val is num) ? val.toInt() : (int.tryParse('$val') ?? _inactivityThreshold);
+        }
+        if (selfConfig['checkInGraceMinutes'] != null) {
+          final val = selfConfig['checkInGraceMinutes'];
+          _checkInGracePeriod = (val is num) ? val.toInt() : (int.tryParse('$val') ?? _checkInGracePeriod);
+        } else if (selfConfig['checkInGracePeriodMinutes'] != null) {
+          final val = selfConfig['checkInGracePeriodMinutes'];
+          _checkInGracePeriod = (val is num) ? val.toInt() : (int.tryParse('$val') ?? _checkInGracePeriod);
+        }
+        if (selfConfig['locationEnabled'] != null) {
+          _locationEnabled = selfConfig['locationEnabled'] as bool;
+        }
+        if (selfConfig['timezone'] != null) {
+          _timezone = selfConfig['timezone'].toString();
+        }
+        if (selfConfig['reminderTimes'] is List) {
+          final parsed = (selfConfig['reminderTimes'] as List)
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList();
+          if (parsed.isNotEmpty) {
+            _reminderTimes = parsed;
+          }
+        }
+      if (selfConfig['pauseWhenTraveling'] is bool) {
+          _pauseWhenTraveling = selfConfig['pauseWhenTraveling'] as bool;
+        }
+        if (selfConfig['lowBatteryAlert'] is bool) {
+          _lowBatteryAlert = selfConfig['lowBatteryAlert'] as bool;
+        }
+        final rawWindows = selfConfig['scheduleWindows'] ?? selfConfig['schedule_windows'];
+        if (rawWindows is List) {
+          final List<ScheduleWindowModel> windows = [];
+          for (final item in rawWindows) {
+            if (item is Map) {
+              windows.add(ScheduleWindowModel.fromJson(Map<String, dynamic>.from(item)));
+            }
+          }
+          if (windows.isNotEmpty) {
+            _initWindows(windows);
+          }
+        }
+      });
+    }
   }
 
   void _initWindows(List<ScheduleWindowModel> existingWindows) {
@@ -190,230 +267,54 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
   int get _sleepMinutes => 24 * 60 - _activeMinutes;
 
   Future<void> _showCustomThresholdDialog() async {
-    final controller = TextEditingController(text: _inactivityThreshold.toString());
-    String? errorText;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            final parsedVal = int.tryParse(controller.text.trim());
-            final preview = parsedVal != null && parsedVal > 0
-                ? _formatThresholdPreview(parsedVal)
-                : null;
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Row(
-                children: [
-                  const Icon(Icons.edit_calendar_rounded, color: AppColors.primary, size: 22),
-                  const SizedBox(width: 8),
-                  Text(context.tr('monitoring_custom_inactivity_title'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.tr('monitoring_custom_inactivity_desc'),
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: controller,
-                      keyboardType: TextInputType.number,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: context.tr('monitoring_custom_minutes_label'),
-                        suffixText: context.tr('common_minutes_unit'),
-                        errorText: errorText,
-                        border: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(12)),
-                        ),
-                      ),
-                      onChanged: (_) {
-                        setDialogState(() {
-                          errorText = null;
-                        });
-                      },
-                    ),
-                    if (preview != null) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryLight,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          context.tr('monitoring_custom_preview', args: {'preview': preview}),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: Text(context.tr('common_cancel')),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final val = int.tryParse(controller.text.trim());
-                    if (val == null) {
-                      setDialogState(() {
-                        errorText = context.tr('monitoring_custom_error_invalid');
-                      });
-                      return;
-                    }
-                    if (val < 15 || val > 1440) {
-                      setDialogState(() {
-                        errorText = context.tr('monitoring_custom_error_range_inactivity');
-                      });
-                      return;
-                    }
-                    setState(() {
-                      _inactivityThreshold = val;
-                    });
-                    Navigator.of(ctx).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: Text(context.tr('common_apply')),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    final result = await Navigator.of(context).push<int>(
+      MaterialPageRoute(
+        builder: (_) => CustomThresholdScreen(
+          initialValue: _inactivityThreshold,
+          formatPreview: _formatThresholdPreview,
+        ),
+      ),
     );
+    if (result != null && mounted) {
+      setState(() {
+        _inactivityThreshold = result;
+      });
+    }
   }
 
   Future<void> _showCustomGracePeriodDialog() async {
-    final controller = TextEditingController(text: _checkInGracePeriod.toString());
-    String? errorText;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            final parsedVal = int.tryParse(controller.text.trim());
-            final preview = parsedVal != null && parsedVal > 0
-                ? _formatDurationText(parsedVal)
-                : null;
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Row(
-                children: [
-                  const Icon(Icons.hourglass_bottom_rounded, color: AppColors.primary, size: 22),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(context.tr('monitoring_custom_grace_title'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.tr('monitoring_custom_grace_desc'),
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: controller,
-                      keyboardType: TextInputType.number,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: context.tr('monitoring_custom_grace_label'),
-                        suffixText: context.tr('common_minutes_unit'),
-                        errorText: errorText,
-                        border: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(12)),
-                        ),
-                      ),
-                      onChanged: (_) {
-                        setDialogState(() {
-                          errorText = null;
-                        });
-                      },
-                    ),
-                    if (preview != null) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryLight,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          context.tr('monitoring_custom_preview', args: {'preview': preview}),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: Text(context.tr('common_cancel')),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final val = int.tryParse(controller.text.trim());
-                    if (val == null) {
-                      setDialogState(() {
-                        errorText = context.tr('monitoring_custom_error_invalid');
-                      });
-                      return;
-                    }
-                    if (val < 1 || val > 1440) {
-                      setDialogState(() {
-                        errorText = context.tr('monitoring_custom_error_range_grace');
-                      });
-                      return;
-                    }
-                    setState(() {
-                      _checkInGracePeriod = val;
-                      _isCustomGracePeriod = true;
-                    });
-                    Navigator.of(ctx).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: Text(context.tr('common_apply')),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    final result = await Navigator.of(context).push<int>(
+      MaterialPageRoute(
+        builder: (_) => CustomGracePeriodScreen(
+          initialValue: _checkInGracePeriod,
+          formatPreview: _formatDurationText,
+        ),
+      ),
     );
+    if (result != null && mounted) {
+      setState(() {
+        _checkInGracePeriod = result;
+        _isCustomGracePeriod = true;
+      });
+    }
+  }
+
+  Future<void> _openCheckInRemindersScreen() async {
+    final updatedTimes = await Navigator.of(context).push<List<String>>(
+      MaterialPageRoute(
+        builder: (_) => CheckInRemindersScreen(
+          initialTimes: List<String>.from(_reminderTimes),
+        ),
+      ),
+    );
+    if (updatedTimes != null && mounted) {
+      setState(() {
+        _reminderTimes = updatedTimes;
+      });
+      final selfConfig = await LocalStorage.getSelfMonitoringConfig() ?? <String, dynamic>{};
+      selfConfig['reminderTimes'] = _reminderTimes;
+      await LocalStorage.saveSelfMonitoringConfig(selfConfig);
+    }
   }
 
   Future<void> _saveConfig() async {
@@ -425,15 +326,58 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
     try {
       final scheduleList = _dayOrder.map((d) => _windowsMap[d]!.toJson()).toList();
 
-      final response = await _apiClient.dio.patch(
-        ApiEndpoints.monitoringConfig(widget.relationship.id),
-        data: {
+      if (widget.relationship == null) {
+        final selfConfig = {
           'inactivityThresholdMinutes': _inactivityThreshold,
           'checkInGraceMinutes': _checkInGracePeriod,
+          'checkInGracePeriodMinutes': _checkInGracePeriod,
           'locationEnabled': _locationEnabled,
           'timezone': _timezone,
+          'reminderTimes': _reminderTimes,
+          'pauseWhenTraveling': _pauseWhenTraveling,
+          'lowBatteryAlert': _lowBatteryAlert,
           'scheduleWindows': scheduleList,
-        },
+        };
+        await LocalStorage.saveSelfMonitoringConfig(selfConfig);
+
+        if (mounted) {
+          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.tr('monitoring_config_update_success', fallback: 'Đã lưu cài đặt giám sát')),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+          try {
+            await Provider.of<DashboardProvider>(context, listen: false).fetchDashboardData();
+          } catch (_) {}
+          if (mounted) {
+            Navigator.of(context).pop(true);
+          }
+        }
+        return;
+      }
+
+      String? currentUserId;
+      try {
+        currentUserId = Provider.of<AuthProvider>(context, listen: false).currentUser?.id;
+      } catch (_) {}
+      currentUserId ??= await LocalStorage.getUserId();
+      final isMonitoredUser = widget.relationship!.monitoredUserId == currentUserId;
+
+      final Map<String, dynamic> patchData = {
+        'inactivityThresholdMinutes': _inactivityThreshold,
+        'checkInGraceMinutes': _checkInGracePeriod,
+        'timezone': _timezone,
+        'scheduleWindows': scheduleList,
+      };
+      if (isMonitoredUser) {
+        patchData['locationEnabled'] = _locationEnabled;
+      }
+
+      final response = await _apiClient.dio.patch(
+        ApiEndpoints.monitoringConfig(widget.relationship!.id),
+        data: patchData,
       );
 
       if (mounted) {
@@ -445,7 +389,12 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
               backgroundColor: AppColors.primary,
             ),
           );
-          Navigator.of(context).pop();
+          try {
+            await Provider.of<DashboardProvider>(context, listen: false).fetchDashboardData();
+          } catch (_) {}
+          if (mounted) {
+            Navigator.of(context).pop(true);
+          }
         }
       }
     } catch (e) {
@@ -458,78 +407,199 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
     }
   }
 
+  Widget _buildMiniTimeChip(String time) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.chipBackground,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        time,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedPillToggle({
+    required bool value,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 46,
+        height: 26,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: value ? const Color(0xFF2E7D60) : const Color(0xFFD6DDD9),
+          borderRadius: BorderRadius.circular(13),
+        ),
+        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          width: 20,
+          height: 20,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupRow({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    Widget? subtitleWidget,
+    required Widget trailing,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 21),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    if (subtitleWidget != null)
+                      subtitleWidget
+                    else if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          height: 1.35,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              trailing,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentWindow = _windowsMap[_selectedDayOfWeek]!;
     final isOvernight = currentWindow.isOvernight;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFBFAF8),
       appBar: AppBar(
-        title: Text(context.tr('schedule_title', fallback: AppStrings.scheduleTitle)),
+        title: Text(
+          context.tr('schedule_title'),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF184A3E),
+          ),
+        ),
+        actions: const [
+          ActiveAccountAppBarAction(compact: true),
+        ],
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.fromLTRB(20.0, 12.0, 20.0, 56.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // User Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: AppColors.secondaryLight,
-                    radius: 24,
-                    child: Text(
-                      (widget.relationship.monitoredUser?.fullName ?? 'U')
-                          .substring(0, 1)
-                          .toUpperCase(),
-                      style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+            // Target User Header (when configuring a specific relationship)
+            if (widget.relationship != null) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppColors.primaryLight,
+                      radius: 22,
+                      child: Text(
+                        (widget.relationship!.monitoredUser?.fullName ?? 'U')
+                            .substring(0, 1)
+                            .toUpperCase(),
+                        style: const TextStyle(
+                          color: AppColors.primaryDark,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.relationship.monitoredUser?.fullName ??
-                              context.tr('monitored_relative_default'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.relationship!.monitoredUser?.fullName ??
+                                context.tr('monitored_relative_default'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15.5,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          context.tr('monitoring_relationship_prefix', args: {
-                            'relation': widget.relationship.label ??
-                                context.tr('family_relation_default'),
-                          }),
-                          style: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 13,
+                          const SizedBox(height: 2),
+                          Text(
+                            context.tr('monitoring_relationship_prefix', args: {
+                              'relation': widget.relationship!.label ??
+                                  context.tr('family_relation_default'),
+                            }),
+                            style: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 12.5,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 16),
+            ],
 
             if (_saveErrorMessage != null) ...[
               CalmErrorCard(
@@ -539,162 +609,235 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
               const SizedBox(height: 12),
             ],
 
-            // Schedule Section Header
-            Text(
-              context.tr('monitoring_schedule_and_sleep_title'),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              context.tr('schedule_subtitle', fallback: AppStrings.scheduleSubtitle),
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 12),
-
-            // Quiet Hours & Sleep Explanation Card
+            // =================================================================
+            // SECTION 1: UNIFIED SCHEDULE & QUIET HOURS CARD
+            // (Eliminates the duplicate ActiveHoursScheduleScreen & overview card)
+            // =================================================================
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFEEF2FF), // soft indigo
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFC7D2FE)),
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.cardBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Header row with Active Hours summary badge
                   Row(
                     children: [
-                      const Icon(Icons.nightlight_round, color: Color(0xFF4F46E5), size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        context.tr('monitoring_quiet_hours_title'),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF3730A3),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.wb_sunny_outlined,
+                          color: AppColors.primary,
+                          size: 21,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.tr(
+                                'monitoring_overview_active_hours',
+                                fallback: 'Khung giờ hoạt động',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${currentWindow.startTime} - ${currentWindow.endTime} • ${context.tr('monitoring_overview_daily', fallback: 'Hằng ngày')}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF4A6B61),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    context.tr('monitoring_quiet_hours_desc'),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF4338CA),
-                      height: 1.35,
+                  const SizedBox(height: 12),
+
+                  // Compact Quiet Hours Explanation Banner
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.16),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.wb_sunny_rounded, color: Color(0xFFD97706), size: 15),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          context.tr('monitoring_active_hours_desc'),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.amber.shade900,
-                            height: 1.3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.nightlight_round,
+                              color: AppColors.primaryDark,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                context.tr('monitoring_quiet_hours_title'),
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          context.tr('monitoring_quiet_hours_desc'),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.textPrimary,
+                            height: 1.35,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.wb_sunny_rounded,
+                              color: AppColors.primary,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                context.tr('monitoring_active_hours_desc'),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
-            // Day Selector Strip
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Row(
-                children: _dayOrder.map((day) {
-                  final isSelected = day == _selectedDayOfWeek;
-                  final window = _windowsMap[day]!;
-                  final isEnabled = window.isEnabled;
+                  // 7-Day Selector Strip
+                  Row(
+                    children: _dayOrder.map((day) {
+                      final isSelected = day == _selectedDayOfWeek;
+                      final window = _windowsMap[day]!;
+                      final isEnabled = window.isEnabled;
 
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedDayOfWeek = day),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primary
-                                : (isEnabled ? AppColors.primaryLight : const Color(0xFFF3F4F6)),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : (isEnabled ? AppColors.primaryLight : AppColors.divider),
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: GestureDetector(
+                            onTap: () =>
+                                setState(() => _selectedDayOfWeek = day),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : (isEnabled
+                                        ? AppColors.primaryLight
+                                        : const Color(0xFFF3F4F6)),
+                                borderRadius: BorderRadius.circular(11),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : (isEnabled
+                                          ? AppColors.primaryLight
+                                          : AppColors.divider),
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    window.dayNameShort,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : (isEnabled
+                                              ? AppColors.primary
+                                              : AppColors.textMuted),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Container(
+                                    width: 5,
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : (isEnabled
+                                              ? AppColors.primary
+                                              : Colors.transparent),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          child: Column(
-                            children: [
-                              Text(
-                                window.dayNameShort,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : (isEnabled ? AppColors.primary : AppColors.textMuted),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : (isEnabled ? AppColors.primary : Colors.transparent),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 16),
+                      );
+                    }).toList(),
+                  ),
+                  const Divider(height: 24),
 
-            // Active Day Editor Card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  // Selected Day Toggle & Time Pickers
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        currentWindow.dayNameFull,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentWindow.dayNameFull,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              currentWindow.isEnabled
+                                  ? context.tr('day_enabled')
+                                  : context.tr('day_disabled'),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: currentWindow.isEnabled
+                                    ? AppColors.primary
+                                    : AppColors.textMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Switch.adaptive(
                         value: currentWindow.isEnabled,
                         activeThumbColor: AppColors.primary,
@@ -707,20 +850,8 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                       ),
                     ],
                   ),
-                  Text(
-                    currentWindow.isEnabled
-                        ? context.tr('day_enabled', fallback: AppStrings.dayEnabled)
-                        : context.tr('day_disabled', fallback: AppStrings.dayDisabled),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: currentWindow.isEnabled
-                          ? AppColors.primary
-                          : AppColors.textMuted,
-                    ),
-                  ),
-                  const Divider(height: 24),
+                  const SizedBox(height: 12),
 
-                  // Start and End Time Pickers (Framed as Wake Time and Bedtime)
                   Opacity(
                     opacity: currentWindow.isEnabled ? 1.0 : 0.4,
                     child: IgnorePointer(
@@ -731,16 +862,20 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                             children: [
                               Expanded(
                                 child: _buildTimePickerTile(
-                                  label: context.tr('monitoring_wake_time_label'),
+                                  label:
+                                      context.tr('monitoring_wake_time_label'),
                                   time: currentWindow.wakeTime,
                                   icon: Icons.wb_sunny_outlined,
                                   onTap: () => _selectTime(isStart: true),
                                 ),
                               ),
                               const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10),
-                                child: Icon(Icons.arrow_forward_rounded,
-                                    color: AppColors.textMuted, size: 20),
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                child: Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: AppColors.textMuted,
+                                  size: 18,
+                                ),
                               ),
                               Expanded(
                                 child: _buildTimePickerTile(
@@ -752,10 +887,12 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          // Sleep & Monitoring Summary Badge
+                          const SizedBox(height: 10),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF9FAFB),
                               borderRadius: BorderRadius.circular(10),
@@ -763,16 +900,27 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.info_outline, size: 15, color: AppColors.primary),
+                                const Icon(
+                                  Icons.info_outline,
+                                  size: 15,
+                                  color: AppColors.primary,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    context.tr('monitoring_sleep_active_summary', args: {
-                                      'sleep': _formatDurationText(_sleepMinutes),
-                                      'active': _formatDurationText(_activeMinutes),
-                                      'bedtime': currentWindow.bedtime,
-                                      'wakeTime': currentWindow.wakeTime,
-                                    }),
+                                    context.tr(
+                                      'monitoring_sleep_active_summary',
+                                      args: {
+                                        'sleep': _formatDurationText(
+                                          _sleepMinutes,
+                                        ),
+                                        'active': _formatDurationText(
+                                          _activeMinutes,
+                                        ),
+                                        'bedtime': currentWindow.bedtime,
+                                        'wakeTime': currentWindow.wakeTime,
+                                      },
+                                    ),
                                     style: const TextStyle(
                                       fontSize: 11,
                                       color: AppColors.textSecondary,
@@ -788,13 +936,12 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                     ),
                   ),
 
-                  // Overnight Window Banner
                   if (currentWindow.isEnabled && isOvernight) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEEF2FF), // Soft indigo
+                        color: const Color(0xFFEEF2FF),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFC7D2FE)),
                       ),
@@ -804,7 +951,7 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                           const Icon(
                             Icons.nightlight_round,
                             color: Color(0xFF6366F1),
-                            size: 20,
+                            size: 18,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -812,23 +959,26 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  context.tr('overnight_badge', fallback: AppStrings.overnightBadge),
+                                  context.tr('overnight_badge'),
                                   style: const TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF3730A3),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  context.tr('monitoring_overnight_schedule_summary', args: {
-                                    'start': currentWindow.startTime,
-                                    'startDay': currentWindow.dayNameFull,
-                                    'end': currentWindow.endTime,
-                                    'nextDay': currentWindow.nextDayNameFull,
-                                  }),
+                                  context.tr(
+                                    'monitoring_overnight_schedule_summary',
+                                    args: {
+                                      'start': currentWindow.startTime,
+                                      'startDay': currentWindow.dayNameFull,
+                                      'end': currentWindow.endTime,
+                                      'nextDay': currentWindow.nextDayNameFull,
+                                    },
+                                  ),
                                   style: const TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11.5,
                                     color: Color(0xFF4338CA),
                                     height: 1.3,
                                   ),
@@ -841,31 +991,154 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                     ),
                   ],
 
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: _applyToAllDays,
-                    icon: const Icon(Icons.copy_rounded, size: 16),
-                    label: Text(context.tr('apply_to_all_days', fallback: AppStrings.applyToAllDays)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primaryLight),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _applyToAllDays,
+                      icon: const Icon(Icons.copy_rounded, size: 15),
+                      label: Text(context.tr('apply_to_all_days')),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primaryLight),
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // Inactivity Threshold Setting (Preset Chips + Custom Input)
+            // =================================================================
+            // SECTION 2: REMINDERS & QUICK MONITORING PREFERENCES
+            // (Grouped cleanly into a single card instead of 3 separate cards)
+            // =================================================================
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  _buildGroupRow(
+                    icon: Icons.notifications_active_outlined,
+                    title: context.tr(
+                      'monitoring_overview_check_reminders',
+                      fallback: 'Nhắc nhở kiểm tra',
+                    ),
+                    onTap: _openCheckInRemindersScreen,
+                    subtitleWidget: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _reminderTimes.length == 3
+                              ? context.tr(
+                                  'monitoring_overview_three_per_day',
+                                  fallback: '3 lần /ngày',
+                                )
+                              : '${_reminderTimes.length} ${context.tr('monitoring_overview_three_per_day', fallback: '3 lần /ngày').replaceFirst('3 ', '')}',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFF4A6B61),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: _reminderTimes
+                              .map((t) => _buildMiniTimeChip(t))
+                              .toList(),
+                        ),
+                      ],
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF8CA098),
+                    ),
+                  ),
+                  const Divider(
+                    height: 1,
+                    indent: 72,
+                    endIndent: 16,
+                    color: AppColors.divider,
+                  ),
+                  _buildGroupRow(
+                    icon: Icons.pause_circle_outline_rounded,
+                    title: context.tr(
+                      'monitoring_overview_pause_mode',
+                      fallback: 'Chế độ tạm dừng',
+                    ),
+                    subtitle: context.tr(
+                      'monitoring_overview_pause_travel',
+                      fallback: 'Tạm dừng khi nghỉ du lịch',
+                    ),
+                    trailing: _buildAnimatedPillToggle(
+                      value: _pauseWhenTraveling,
+                      onTap: () => setState(
+                        () => _pauseWhenTraveling = !_pauseWhenTraveling,
+                      ),
+                    ),
+                  ),
+                  const Divider(
+                    height: 1,
+                    indent: 72,
+                    endIndent: 16,
+                    color: AppColors.divider,
+                  ),
+                  _buildGroupRow(
+                    icon: Icons.battery_alert_rounded,
+                    title: context.tr(
+                      'monitoring_overview_low_battery_title',
+                      fallback: 'Thông báo pin yếu',
+                    ),
+                    subtitle: context.tr(
+                      'monitoring_overview_low_battery_sub',
+                      fallback: 'Khi pin < 20%',
+                    ),
+                    trailing: _buildAnimatedPillToggle(
+                      value: _lowBatteryAlert,
+                      onTap: () =>
+                          setState(() => _lowBatteryAlert = !_lowBatteryAlert),
+                    ),
+                  ),
+                  const Divider(
+                    height: 1,
+                    indent: 72,
+                    endIndent: 16,
+                    color: AppColors.divider,
+                  ),
+                  _buildGroupRow(
+                    icon: Icons.location_on_outlined,
+                    title: context.tr('monitoring_share_location_title'),
+                    subtitle: context.tr('monitoring_share_location_desc'),
+                    trailing: _buildAnimatedPillToggle(
+                      value: _locationEnabled,
+                      onTap: () =>
+                          setState(() => _locationEnabled = !_locationEnabled),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // =================================================================
+            // SECTION 3: INACTIVITY THRESHOLD & GRACE PERIOD
+            // =================================================================
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.cardBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -876,15 +1149,21 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                       Expanded(
                         child: Text(
                           context.tr('monitoring_inactivity_threshold_title'),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primaryLight,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           _formatThresholdPreview(_inactivityThreshold),
@@ -900,7 +1179,10 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     context.tr('monitoring_inactivity_threshold_desc'),
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   Wrap(
@@ -914,16 +1196,20 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                           selected: isSelected,
                           selectedColor: AppColors.primary,
                           labelStyle: TextStyle(
-                            color: isSelected ? Colors.white : AppColors.textPrimary,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             fontSize: 13,
                           ),
                           backgroundColor: const Color(0xFFF3F4F6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                              color: isSelected ? AppColors.primary : AppColors.divider,
-                            ),
+                          shape: const StadiumBorder(),
+                          side: BorderSide(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.cardBorder,
                           ),
                           onSelected: (selected) {
                             if (selected) {
@@ -932,27 +1218,36 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                           },
                         );
                       }),
-                      // Custom chip (auto-selected when non-standard value from backend or user)
                       Builder(
                         builder: (context) {
-                          final isCustom = !_presetMinutes.contains(_inactivityThreshold);
+                          final isCustom =
+                              !_presetMinutes.contains(_inactivityThreshold);
                           return ChoiceChip(
                             label: Text(
                               isCustom
-                                  ? context.tr('monitoring_custom_chip', args: {'duration': _formatPresetChipLabel(_inactivityThreshold)})
+                                  ? context.tr(
+                                      'monitoring_custom_chip',
+                                      args: {
+                                        'duration': _formatPresetChipLabel(
+                                          _inactivityThreshold,
+                                        ),
+                                      },
+                                    )
                                   : context.tr('monitoring_custom_dots'),
                             ),
                             selected: isCustom,
                             selectedColor: AppColors.primary,
                             labelStyle: TextStyle(
                               color: isCustom ? Colors.white : AppColors.primary,
-                              fontWeight: isCustom ? FontWeight.bold : FontWeight.w600,
+                              fontWeight: isCustom
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
                               fontSize: 13,
                             ),
                             backgroundColor: AppColors.primaryLight,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              side: const BorderSide(color: AppColors.primaryLight),
+                            shape: const StadiumBorder(),
+                            side: const BorderSide(
+                              color: AppColors.primaryLight,
                             ),
                             onSelected: (_) => _showCustomThresholdDialog(),
                           );
@@ -960,48 +1255,86 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+                  const Divider(height: 28),
 
-            // Check-in Grace Period Setting (Chips + Custom Option)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  // Check-in Grace Period Setting
                   Text(
                     context.tr('monitoring_grace_period_title'),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     context.tr('monitoring_grace_period_desc'),
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
+                    isExpanded: true,
                     // ignore: deprecated_member_use
                     value: _checkInGracePeriod,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.timer_outlined),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.inputFill,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            const BorderSide(color: AppColors.cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            const BorderSide(color: AppColors.cardBorder),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.timer_outlined,
+                        color: AppColors.primary,
+                      ),
                     ),
                     items: [
-                      DropdownMenuItem(value: 15, child: Text(context.tr('monitoring_minutes_15'))),
-                      DropdownMenuItem(value: 30, child: Text(context.tr('monitoring_minutes_30_recommended'))),
-                      DropdownMenuItem(value: 45, child: Text(context.tr('monitoring_minutes_45'))),
-                      DropdownMenuItem(value: 60, child: Text(context.tr('monitoring_minutes_60'))),
+                      DropdownMenuItem(
+                        value: 15,
+                        child: Text(
+                          context.tr('monitoring_minutes_15'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 30,
+                        child: Text(
+                          context.tr('monitoring_minutes_30_recommended'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 45,
+                        child: Text(
+                          context.tr('monitoring_minutes_45'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 60,
+                        child: Text(
+                          context.tr('monitoring_minutes_60'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                       if (_isCustomGracePeriod)
                         DropdownMenuItem(
                           value: _checkInGracePeriod,
-                          child: Text(context.tr('monitoring_custom_grace_selected', args: {'minutes': '$_checkInGracePeriod'})),
+                          child: Text(
+                            context.tr(
+                              'monitoring_custom_grace_selected',
+                              args: {'minutes': '$_checkInGracePeriod'},
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
                     onChanged: (val) {
@@ -1013,48 +1346,29 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                       }
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: _showCustomGracePeriodDialog,
                       icon: const Icon(Icons.edit_calendar_rounded, size: 16),
-                      label: Text(_isCustomGracePeriod
-                          ? context.tr('monitoring_custom_grace_current', args: {'minutes': '$_checkInGracePeriod'})
-                          : context.tr('monitoring_custom_time_other')),
+                      label: Text(
+                        _isCustomGracePeriod
+                            ? context.tr(
+                                'monitoring_custom_grace_current',
+                                args: {'minutes': '$_checkInGracePeriod'},
+                              )
+                            : context.tr('monitoring_custom_time_other'),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Location Sharing Toggle
-            Material(
-              color: AppColors.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.divider),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: SwitchListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                  title: Text(
-                    context.tr('monitoring_share_location_title'),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  subtitle: Text(
-                    context.tr('monitoring_share_location_desc'),
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                  ),
-                  value: _locationEnabled,
-                  activeThumbColor: AppColors.primary,
-                  onChanged: (val) => setState(() => _locationEnabled = val),
-                ),
-              ),
-            ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
 
             // Save Button
             ElevatedButton(
@@ -1063,9 +1377,7 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                shape: const StadiumBorder(),
                 elevation: 0,
               ),
               child: _isSaving
@@ -1079,7 +1391,10 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                     )
                   : Text(
                       context.tr('common_save', fallback: 'Lưu cài đặt'),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
             ),
           ],
@@ -1096,19 +1411,21 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider),
+          color: AppColors.inputFill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.cardBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
             ),
             const SizedBox(height: 6),
@@ -1119,13 +1436,17 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                   size: 16,
                   color: AppColors.primary,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    time,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -1136,3 +1457,506 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
     );
   }
 }
+
+class _CustomMinutesInputScaffold extends StatefulWidget {
+  final int initialValue;
+  final String Function(int) formatPreview;
+  final String titleKey;
+  final String descKey;
+  final String labelKey;
+  final String rangeErrorKey;
+
+  const _CustomMinutesInputScaffold({
+    required this.initialValue,
+    required this.formatPreview,
+    required this.titleKey,
+    required this.descKey,
+    required this.labelKey,
+    required this.rangeErrorKey,
+  });
+
+  @override
+  State<_CustomMinutesInputScaffold> createState() =>
+      _CustomMinutesInputScaffoldState();
+}
+
+class _CustomMinutesInputScaffoldState
+    extends State<_CustomMinutesInputScaffold> {
+  late final TextEditingController _controller;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue.toString());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final parsedVal = int.tryParse(_controller.text.trim());
+    final preview = parsedVal != null && parsedVal > 0
+        ? widget.formatPreview(parsedVal)
+        : null;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFFBFAF8),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFBFAF8),
+        elevation: 0,
+        title: Text(
+          context.tr(widget.titleKey),
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        minimum: const EdgeInsets.only(bottom: 24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  context.tr(widget.descKey),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _controller,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: AppColors.inputFill,
+                    labelText: context.tr(widget.labelKey),
+                    suffixText: context.tr('common_minutes_unit'),
+                    errorText: _errorText,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
+                    ),
+                  ),
+                  onChanged: (_) {
+                    setState(() {
+                      _errorText = null;
+                    });
+                  },
+                ),
+                if (preview != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      context.tr(
+                        'monitoring_custom_preview',
+                        args: {'preview': preview},
+                      ),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: Text(context.tr('common_cancel')),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final val = int.tryParse(_controller.text.trim());
+                          if (val == null) {
+                            setState(() {
+                              _errorText =
+                                  context.tr('monitoring_custom_error_invalid');
+                            });
+                            return;
+                          }
+                          if (val < 1 || val > 1440) {
+                            setState(() {
+                              _errorText = context.tr(widget.rangeErrorKey);
+                            });
+                            return;
+                          }
+                          Navigator.of(context).pop(val);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: const StadiumBorder(),
+                          elevation: 0,
+                        ),
+                        child: Text(context.tr('common_apply')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CustomThresholdScreen extends StatelessWidget {
+  final int initialValue;
+  final String Function(int) formatPreview;
+
+  const CustomThresholdScreen({
+    super.key,
+    required this.initialValue,
+    required this.formatPreview,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _CustomMinutesInputScaffold(
+      initialValue: initialValue,
+      formatPreview: formatPreview,
+      titleKey: 'monitoring_custom_inactivity_title',
+      descKey: 'monitoring_custom_inactivity_desc',
+      labelKey: 'monitoring_custom_minutes_label',
+      rangeErrorKey: 'monitoring_custom_error_range_inactivity',
+    );
+  }
+}
+
+class CustomGracePeriodScreen extends StatelessWidget {
+  final int initialValue;
+  final String Function(int) formatPreview;
+
+  const CustomGracePeriodScreen({
+    super.key,
+    required this.initialValue,
+    required this.formatPreview,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _CustomMinutesInputScaffold(
+      initialValue: initialValue,
+      formatPreview: formatPreview,
+      titleKey: 'monitoring_custom_grace_title',
+      descKey: 'monitoring_custom_grace_desc',
+      labelKey: 'monitoring_custom_grace_label',
+      rangeErrorKey: 'monitoring_custom_error_range_grace',
+    );
+  }
+}
+
+class CheckInRemindersScreen extends StatefulWidget {
+  final List<String> initialTimes;
+
+  const CheckInRemindersScreen({
+    super.key,
+    required this.initialTimes,
+  });
+
+  @override
+  State<CheckInRemindersScreen> createState() => _CheckInRemindersScreenState();
+}
+
+class _CheckInRemindersScreenState extends State<CheckInRemindersScreen> {
+  late List<String> _times;
+
+  @override
+  void initState() {
+    super.initState();
+    _times = List<String>.from(widget.initialTimes);
+    if (_times.isEmpty) {
+      _times = ['09:00', '15:00', '20:00'];
+    }
+  }
+
+  Future<void> _editOrAddTime({int? index}) async {
+    TimeOfDay initial = const TimeOfDay(hour: 9, minute: 0);
+    if (index != null && index < _times.length) {
+      final parts = _times[index].split(':');
+      initial = TimeOfDay(
+        hour: int.tryParse(parts[0]) ?? 9,
+        minute: int.tryParse(parts[1]) ?? 0,
+      );
+    }
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child ?? const SizedBox(),
+        );
+      },
+    );
+
+    if (picked != null) {
+      final formatted =
+          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      setState(() {
+        if (index != null) {
+          _times[index] = formatted;
+        } else if (!_times.contains(formatted)) {
+          _times.add(formatted);
+        }
+        _times.sort();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFBFAF8),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFBFAF8),
+        elevation: 0,
+        title: Text(
+          context.tr(
+            'monitoring_overview_check_reminders',
+            fallback: 'Nhắc nhở kiểm tra',
+          ),
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        minimum: const EdgeInsets.only(bottom: 24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.notifications_active_outlined,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        context.tr(
+                          'notif_reminders_toggle',
+                          fallback:
+                              'Chọn các mốc giờ trong ngày để ứng dụng nhắc xác nhận an toàn.',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: AppColors.textPrimary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    label: Text(
+                      context.tr(
+                        'monitoring_reminder_preset_2',
+                        fallback: '2 lần (08:00, 20:00)',
+                      ),
+                    ),
+                    onPressed: () {
+                      setState(() => _times = ['08:00', '20:00']);
+                    },
+                  ),
+                  ActionChip(
+                    label: Text(
+                      context.tr(
+                        'monitoring_reminder_preset_3',
+                        fallback: '3 lần (09:00, 15:00, 20:00)',
+                      ),
+                    ),
+                    onPressed: () {
+                      setState(() => _times = ['09:00', '15:00', '20:00']);
+                    },
+                  ),
+                  ActionChip(
+                    label: Text(
+                      context.tr(
+                        'monitoring_reminder_preset_4',
+                        fallback: '4 lần (08:00, 12:00, 16:00, 20:00)',
+                      ),
+                    ),
+                    onPressed: () {
+                      setState(
+                        () => _times = ['08:00', '12:00', '16:00', '20:00'],
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Column(
+                  children: [
+                    for (int i = 0; i < _times.length; i++) ...[
+                      if (i > 0)
+                        const Divider(
+                          height: 1,
+                          indent: 16,
+                          endIndent: 16,
+                          color: AppColors.divider,
+                        ),
+                      ListTile(
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.alarm_rounded,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          _times[i],
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        onTap: () => _editOrAddTime(index: i),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              onPressed: () => _editOrAddTime(index: i),
+                            ),
+                            if (_times.length > 1)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: AppColors.danger,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() => _times.removeAt(i));
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: () => _editOrAddTime(),
+                icon: const Icon(Icons.add_alarm_rounded, size: 18),
+                label: Text(
+                  context.tr(
+                    'monitoring_custom_time_other',
+                    fallback: 'Thêm mốc giờ nhắc nhở',
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: const StadiumBorder(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(_times),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: const StadiumBorder(),
+                  elevation: 0,
+                ),
+                child: Text(
+                  context.tr('common_apply', fallback: 'Áp dụng'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+

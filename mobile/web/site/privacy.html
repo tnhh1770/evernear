@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="p.title">Chính sách bảo mật — Evernear</title>
+  <meta name="description" content="Evernear thu thập dữ liệu gì, nguyên tắc Bảo mật mặc định (Privacy-by-Default), vị trí một lần khi có sự đồng ý và cách tự xoá tài khoản tức thì.">
+  <meta name="theme-color" content="#184a3e">
+  <link rel="canonical" href="https://evernear.app/privacy">
+  <link rel="icon" type="image/png" href="/site/img/logo.png">
+  <link rel="stylesheet" href="/site/evernear.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="nav">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/site/img/logo.png" alt="Logo Evernear" width="38" height="38">
+        <span>Evernear</span>
+      </a>
+      <nav class="nav-links" aria-label="Điều hướng chính">
+        <a href="/#roles" data-i18n="nav.roles">Hai vai trò</a>
+        <a href="/#features" data-i18n="i001">Tính năng</a>
+        <a href="/#screens" data-i18n="i002">Giao diện</a>
+        <a href="/#security" data-i18n="i003">Bảo mật &amp; Hỏi đáp</a>
+        <a href="/privacy" data-i18n="i004">Chính sách bảo mật</a>
+        <a href="/terms" data-i18n="i005">Điều khoản</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="btn btn-dark" data-app-cta href="/login" data-i18n="i006">Mở ứng dụng</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="page-hero">
+    <div class="shell-narrow">
+      <span class="warm-pill"><span class="warm-pill-dot"></span><a href="/" data-i18n="p005">Về trang chủ</a></span>
+      <h1 data-i18n="p006">Chính sách bảo mật</h1>
+      <p data-i18n="p007">Áp dụng cho ứng dụng di động Evernear và bản web Evernear. Cập nhật lần cuối: ngày 15 tháng 10 năm 2026.</p>
+    </div>
+  </div>
+
+  <main class="legal-body">
+    <div class="shell-narrow">
+      <article class="legal-card">
+        <div class="callout" data-i18n="p008">
+          <strong>Evernear</strong> là ứng dụng theo dõi bất động (Inactivity Monitor) và điểm danh an toàn cho người sống một mình hoặc người lớn tuổi. Chúng tôi xây dựng Evernear dựa trên nguyên tắc <strong>Bảo mật mặc định (Privacy-by-Default)</strong>: không camera, không micro, không theo dõi GPS chạy nền liên tục.
+        </div>
+
+        <h2 id="collected">1. <span data-i18n="p021">Chúng tôi thu thập gì</span></h2>
+        <ul>
+          <li><strong data-i18n="p022">Tài khoản và hồ sơ:</strong> <span data-i18n="p023">Địa chỉ email, mật khẩu đã băm một chiều bằng bcrypt, tên hiển thị, số điện thoại (tuỳ chọn), ngôn ngữ giao diện, múi giờ IANA và vai trò sử dụng (Người được bảo vệ / Người giám hộ).</span></li>
+          <li><strong data-i18n="p024">Tín hiệu điểm danh và Hoạt động thụ động:</strong> <span data-i18n="p025">Ghi nhận các lần bấm nút “Tôi vẫn ổn” (trọng số 1.0) và các tín hiệu sinh hoạt thụ động (mở khoá màn hình, cắm sạc, bước chân với trọng số 0.2–0.8). Tín hiệu kỹ thuật Heartbeat của thiết bị (trọng số 0.0) chỉ dùng để kiểm tra kết nối và trạng thái pin.</span></li>
+          <li><strong data-i18n="p026">Vị trí (Chỉ lấy một lần khi có sự đồng ý):</strong> <span data-i18n="p027">Evernear tuyệt đối không theo dõi GPS chạy nền liên tục. Ứng dụng chỉ lấy toạ độ vị trí một lần duy nhất (single-shot) khi bạn đã cấp quyền và chủ động bấm Check-in hoặc khi xảy ra sự cố khẩn cấp để hỗ trợ Người giám hộ tìm kiếm.</span></li>
+          <li><strong data-i18n="p028">Thông tin thiết bị và Thông báo đẩy:</strong> <span data-i18n="p029">Mã thông báo đẩy FCM (Firebase Cloud Messaging), hệ điều hành, phiên bản ứng dụng và địa chỉ nhận cảnh báo (SMS / Telegram) do chính bạn cấu hình.</span></li>
+        </ul>
+
+        <h2 id="usage">2. <span data-i18n="p052">Vì sao chúng tôi dùng dữ liệu của bạn</span></h2>
+        <ul>
+          <li data-i18n="p053"><strong>Để vận hành máy trạng thái an toàn 8 bước</strong> — đánh giá đúng hạn check-in, thời gian ân hạn (Grace Period) và đóng băng đồng hồ trong Khung giờ yên tĩnh (Quiet Hours).</li>
+          <li data-i18n="p054"><strong>Để gửi nhắc nhở và cảnh báo đa kênh</strong> — gửi thông báo đẩy FCM, SMS hoặc Telegram tới những Người giám hộ mà bạn đã ghép đôi khi quá hạn phản hồi.</li>
+          <li data-i18n="p055"><strong>Để tính Điểm rủi ro vận hành (Composite Risk Score 0–100)</strong> — hỗ trợ Người giám hộ ưu tiên xử lý sự cố (hoàn toàn phi chẩn đoán y tế).</li>
+        </ul>
+        <p data-i18n="p058">Chúng tôi <strong>không bao giờ bán</strong> dữ liệu cá nhân của bạn và <strong>không hiển thị bất kỳ quảng cáo nào</strong>.</p>
+
+        <h2 id="sharing">3. <span data-i18n="p059">Ai nhìn thấy dữ liệu của bạn</span></h2>
+        <ul>
+          <li data-i18n="p060"><strong>Những Người giám hộ được bạn chấp thuận</strong> — chỉ những người đã hoàn tất ghép đôi hai chiều với bạn qua mã mời QR 48 giờ mới nhìn thấy trạng thái an toàn và thông báo sự cố của bạn.</li>
+          <li data-i18n="p061"><strong>Hạ tầng kỹ thuật thiết yếu</strong> — dịch vụ gửi thông báo đẩy (Firebase Cloud Messaging), cổng SMS / Telegram để chuyển phát cảnh báo khẩn cấp.</li>
+        </ul>
+
+        <h2 id="security">4. <span data-i18n="p072">Lưu trữ và bảo mật</span></h2>
+        <ul>
+          <li data-i18n="p073">Mọi giao tiếp giữa ứng dụng di động, trình duyệt web và máy chủ đều được mã hoá qua <strong>HTTPS / TLS (WSS cho WebSocket)</strong>.</li>
+          <li data-i18n="p074">Mật khẩu được băm bằng thuật toán <strong>bcrypt</strong>; phiên đăng nhập sử dụng <strong>JWT Access Token</strong> ngắn hạn kèm cơ chế xoay vòng <strong>Refresh Token</strong> chống đánh cắp.</li>
+        </ul>
+
+        <h2 id="delete">5. <span data-i18n="p078">Xoá tài khoản và dữ liệu của bạn (Quyền được lãng quên)</span></h2>
+        <p data-i18n="p079">Bạn có thể tự xóa vĩnh viễn tài khoản và toàn bộ dữ liệu cá nhân bất cứ lúc nào <strong>trực tiếp ngay trong ứng dụng Evernear</strong> tại: <strong>Cài đặt (Settings) → Xóa tài khoản (Delete Account)</strong>. Thao tác này gọi trực tiếp API <code>DELETE /api/v1/users/me</code> và có hiệu lực ngay lập tức.</p>
+        <p data-i18n="p080">Nếu bạn đã gỡ cài đặt ứng dụng, bạn có thể gửi yêu cầu qua trang <a href="/delete-account">Yêu cầu xoá tài khoản (/delete-account)</a> hoặc gửi thư tới <a href="mailto:support@erai.vn">support@erai.vn</a>.</p>
+
+        <h2 id="contact">6. <span data-i18n="p096">Liên hệ</span></h2>
+        <p data-i18n="p097">Mọi câu hỏi về quyền riêng tư và bảo vệ dữ liệu, vui lòng liên hệ: <a href="mailto:support@erai.vn"><strong>support@erai.vn</strong></a>.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell">
+      <div class="footer-bottom" style="padding-top:0;">
+        <span>© 2026 Evernear</span>
+        <span>
+          <a href="/" data-i18n="p005">Về trang chủ</a> ·
+          <a href="/privacy" data-i18n="i153">Chính sách bảo mật</a> ·
+          <a href="/terms" data-i18n="i154">Điều khoản dịch vụ</a> ·
+          <a href="/delete-account" data-i18n="i_del_page">Xoá tài khoản</a>
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/site/evernear.js" defer></script>
+</body>
+</html>

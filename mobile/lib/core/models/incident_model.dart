@@ -15,6 +15,7 @@ class IncidentModel {
   final String? resolvedByUserId;
   final String? resolutionNote;
   final List<dynamic>? events;
+  final String? userDisplayName;
 
   IncidentModel({
     required this.id,
@@ -31,6 +32,7 @@ class IncidentModel {
     this.resolvedByUserId,
     this.resolutionNote,
     this.events,
+    this.userDisplayName,
   });
 
   String? get note => resolutionNote;
@@ -94,6 +96,9 @@ class IncidentModel {
           json['resolutionNote']?.toString() ??
           json['resolution_note']?.toString(),
       events: rawEvents is List ? rawEvents : null,
+      userDisplayName: json['userDisplayName']?.toString() ??
+          (json['user'] is Map ? (json['user']['displayName'] ?? json['user']['fullName'])?.toString() : null) ??
+          json['userName']?.toString(),
     );
   }
 
@@ -117,6 +122,7 @@ class IncidentModel {
       if (resolutionNote != null) 'resolutionNote': resolutionNote,
       if (resolutionNote != null) 'note': resolutionNote,
       if (events != null) 'events': events,
+      if (userDisplayName != null) 'userDisplayName': userDisplayName,
     };
   }
 
@@ -135,6 +141,7 @@ class IncidentModel {
     String? resolvedByUserId,
     String? resolutionNote,
     List<dynamic>? events,
+    String? userDisplayName,
   }) {
     return IncidentModel(
       id: id ?? this.id,
@@ -151,6 +158,7 @@ class IncidentModel {
       resolvedByUserId: resolvedByUserId ?? this.resolvedByUserId,
       resolutionNote: resolutionNote ?? this.resolutionNote,
       events: events ?? this.events,
+      userDisplayName: userDisplayName ?? this.userDisplayName,
     );
   }
 }

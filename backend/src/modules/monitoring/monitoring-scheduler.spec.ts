@@ -325,4 +325,119 @@ describe('MonitoringScheduler', () => {
       ).toBe(false);
     });
   });
+
+  describe('calculateActiveInactiveMinutes', () => {
+    it('should return 0 if lastActive is invalid or in the future', () => {
+      const now = new Date('2026-10-06T10:00:00Z');
+      expect(MonitoringScheduler.calculateActiveInactiveMinutes(null as any, now, [])).toBe(0);
+      expect(MonitoringScheduler.calculateActiveInactiveMinutes(new Date(NaN), now, [])).toBe(0);
+      expect(
+        MonitoringScheduler.calculateActiveInactiveMinutes(
+          new Date('2026-10-06T11:00:00Z'),
+          now,
+          [],
+        ),
+      ).toBe(0);
+    });
+
+    it('should return wall-clock minutes when windows array is empty (24/7 monitoring)', () => {
+      const lastActive = new Date('2026-10-06T08:00:00Z');
+      const now = new Date('2026-10-06T10:30:00Z'); // 150 minutes later
+      expect(MonitoringScheduler.calculateActiveInactiveMinutes(lastActive, now, [])).toBe(150);
+    });
+
+    it('should return 0 when all schedule windows are disabled', () => {
+      const lastActive = new Date('2026-10-06T08:00:00Z');
+      const now = new Date('2026-10-06T10:30:00Z');
+      const windows: MonitoringScheduleWindow[] = [
+        {
+          id: '1',
+          configId: 'cfg-1',
+          config: null as any,
+          dayOfWeek: 2,
+          startTime: '07:00',
+          endTime: '22:00',
+          isEnabled: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      expect(MonitoringScheduler.calculateActiveInactiveMinutes(lastActive, now, windows)).toBe(0);
+    });
+
+    it('should freeze inactivity timer across overnight quiet hours (zero false alarms upon waking)', () => {
+      // Monday 2026-10-05: active window 07:00 to 22:00 VN
+      // Tuesday 2026-10-06: active window 07:00 to 22:00 VN
+      const windows: MonitoringScheduleWindow[] = [
+        {
+          id: '1',
+          configId: 'cfg-1',
+          config: null as any,
+          dayOfWeek: 1, // Monday
+          startTime: '07:00',
+          endTime: '22:00',
+          isEnabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: '2',
+          configId: 'cfg-1',
+          config: null as any,
+          dayOfWeek: 2, // Tuesday
+          startTime: '07:00',
+          endTime: '22:00',
+          isEnabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      // Senior was active at 21:00 VN Monday (14:00 UTC) -> 1 hour before quiet hours
+      const lastActive = new Date('2026-10-05T14:00:00Z');
+      // Senior wakes up at 07:05 VN Tuesday (00:05 UTC) -> 5 min after active window reopens
+      const now = new Date('2026-10-06T00:05:00Z');
+
+      // Total wall-clock elapsed: 10 hours 5 minutes = 605 minutes.
+      // Active awake elapsed: 60 minutes (21:00-22:00) + 5 minutes (07:00-07:05) = 65 minutes!
+      const activeMinutes = MonitoringScheduler.calculateActiveInactiveMinutes(
+        lastActive,
+        now,
+        windows,
+        'Asia/Ho_Chi_Minh',
+      );
+      expect(activeMinutes).toBe(65);
+    });
+
+    it('should correctly calculate active minutes for overnight active window', () => {
+      // Active window is overnight: Monday 22:00 to 06:00 VN
+      const windows: MonitoringScheduleWindow[] = [
+        {
+          id: '1',
+          configId: 'cfg-1',
+          config: null as any,
+          dayOfWeek: 1, // Monday
+          startTime: '22:00',
+          endTime: '06:00',
+          isEnabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      // Last active: Monday 21:00 VN (14:00 UTC)
+      // Now: Tuesday 04:00 VN (Monday 21:00 UTC)
+      // Active between 22:00 and 04:00 = 6 hours = 360 minutes
+      const lastActive = new Date('2026-10-05T14:00:00Z');
+      const now = new Date('2026-10-05T21:00:00Z');
+
+      const activeMinutes = MonitoringScheduler.calculateActiveInactiveMinutes(
+        lastActive,
+        now,
+        windows,
+        'Asia/Ho_Chi_Minh',
+      );
+      expect(activeMinutes).toBe(360);
+    });
+  });
 });

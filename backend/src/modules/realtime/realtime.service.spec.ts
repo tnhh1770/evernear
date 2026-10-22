@@ -11,11 +11,17 @@ describe('RealtimeService', () => {
     findOne: any;
   };
 
-  const createMockSocket = (readyState = WebSocket.OPEN) => ({
-    readyState,
-    send: vi.fn(),
-    close: vi.fn(),
-  });
+  const createMockSocket = (readyState = WebSocket.OPEN) => {
+    const send = vi.fn();
+    const close = vi.fn();
+    return {
+      readyState,
+      send,
+      close,
+      sendMock: send,
+      closeMock: close,
+    };
+  };
 
   beforeEach(() => {
     mockRelationshipRepo = {
@@ -33,40 +39,40 @@ describe('RealtimeService', () => {
 
   describe('Client Registration & Lifecycle', () => {
     it('should register client and send CONNECTED ack', () => {
-      const socket = createMockSocket() as unknown as WebSocket;
-      service.registerClient('user-1', socket);
+      const socket = createMockSocket();
+      service.registerClient('user-1', socket as unknown as WebSocket);
 
       expect(service.getConnectedUserCount()).toBe(1);
       expect(service.getActiveSocketCount()).toBe(1);
-      expect(socket.send).toHaveBeenCalledTimes(1);
-      const sentPayload = JSON.parse((socket.send as any).mock.calls[0][0]);
+      expect(socket.sendMock).toHaveBeenCalledTimes(1);
+      const sentPayload = JSON.parse(socket.sendMock.mock.calls[0][0]);
       expect(sentPayload.type).toBe('CONNECTED');
       expect(sentPayload.userId).toBe('user-1');
     });
 
     it('should support multiple sockets for the same user', () => {
-      const socket1 = createMockSocket() as unknown as WebSocket;
-      const socket2 = createMockSocket() as unknown as WebSocket;
+      const socket1 = createMockSocket();
+      const socket2 = createMockSocket();
 
-      service.registerClient('user-1', socket1);
-      service.registerClient('user-1', socket2);
+      service.registerClient('user-1', socket1 as unknown as WebSocket);
+      service.registerClient('user-1', socket2 as unknown as WebSocket);
 
       expect(service.getConnectedUserCount()).toBe(1);
       expect(service.getActiveSocketCount()).toBe(2);
     });
 
     it('should remove socket upon disconnect', () => {
-      const socket1 = createMockSocket() as unknown as WebSocket;
-      const socket2 = createMockSocket() as unknown as WebSocket;
+      const socket1 = createMockSocket();
+      const socket2 = createMockSocket();
 
-      service.registerClient('user-1', socket1);
-      service.registerClient('user-1', socket2);
+      service.registerClient('user-1', socket1 as unknown as WebSocket);
+      service.registerClient('user-1', socket2 as unknown as WebSocket);
 
-      service.removeClient('user-1', socket1);
+      service.removeClient('user-1', socket1 as unknown as WebSocket);
       expect(service.getActiveSocketCount()).toBe(1);
       expect(service.getConnectedUserCount()).toBe(1);
 
-      service.removeClient('user-1', socket2);
+      service.removeClient('user-1', socket2 as unknown as WebSocket);
       expect(service.getActiveSocketCount()).toBe(0);
       expect(service.getConnectedUserCount()).toBe(0);
     });
@@ -74,9 +80,9 @@ describe('RealtimeService', () => {
 
   describe('Event Emission', () => {
     it('should emit to registered user socket', async () => {
-      const socket = createMockSocket() as unknown as WebSocket;
-      service.registerClient('user-1', socket);
-      (socket.send as any).mockClear();
+      const socket = createMockSocket();
+      service.registerClient('user-1', socket as unknown as WebSocket);
+      socket.sendMock.mockClear();
 
       await service.emitToUser('user-1', {
         type: RealtimeEventType.CHECK_IN_CONFIRMED,
@@ -85,8 +91,8 @@ describe('RealtimeService', () => {
         occurredAt: '2026-10-13T12:00:00Z',
       });
 
-      expect(socket.send).toHaveBeenCalledTimes(1);
-      const sent = JSON.parse((socket.send as any).mock.calls[0][0]);
+      expect(socket.sendMock).toHaveBeenCalledTimes(1);
+      const sent = JSON.parse(socket.sendMock.mock.calls[0][0]);
       expect(sent.type).toBe(RealtimeEventType.CHECK_IN_CONFIRMED);
       expect(sent.userId).toBe('user-1');
       expect(sent.timestamp).toBeDefined();
@@ -109,12 +115,12 @@ describe('RealtimeService', () => {
         { monitorId: 'monitor-2', status: RelationshipStatus.ACCEPTED },
       ]);
 
-      const monitorSocket1 = createMockSocket() as unknown as WebSocket;
-      const monitorSocket2 = createMockSocket() as unknown as WebSocket;
-      service.registerClient('monitor-1', monitorSocket1);
-      service.registerClient('monitor-2', monitorSocket2);
-      (monitorSocket1.send as any).mockClear();
-      (monitorSocket2.send as any).mockClear();
+      const monitorSocket1 = createMockSocket();
+      const monitorSocket2 = createMockSocket();
+      service.registerClient('monitor-1', monitorSocket1 as unknown as WebSocket);
+      service.registerClient('monitor-2', monitorSocket2 as unknown as WebSocket);
+      monitorSocket1.sendMock.mockClear();
+      monitorSocket2.sendMock.mockClear();
 
       await service.emitToMonitorsOf('elder-user', {
         type: RealtimeEventType.ACTIVITY_RECORDED,
@@ -130,8 +136,8 @@ describe('RealtimeService', () => {
         },
       });
 
-      expect(monitorSocket1.send).toHaveBeenCalledTimes(1);
-      expect(monitorSocket2.send).toHaveBeenCalledTimes(1);
+      expect(monitorSocket1.sendMock).toHaveBeenCalledTimes(1);
+      expect(monitorSocket2.sendMock).toHaveBeenCalledTimes(1);
     });
 
     it('should emit to both participants of a relationship', async () => {
@@ -141,12 +147,12 @@ describe('RealtimeService', () => {
         monitoredUserId: 'elder-1',
       });
 
-      const monitorSocket = createMockSocket() as unknown as WebSocket;
-      const elderSocket = createMockSocket() as unknown as WebSocket;
-      service.registerClient('monitor-1', monitorSocket);
-      service.registerClient('elder-1', elderSocket);
-      (monitorSocket.send as any).mockClear();
-      (elderSocket.send as any).mockClear();
+      const monitorSocket = createMockSocket();
+      const elderSocket = createMockSocket();
+      service.registerClient('monitor-1', monitorSocket as unknown as WebSocket);
+      service.registerClient('elder-1', elderSocket as unknown as WebSocket);
+      monitorSocket.sendMock.mockClear();
+      elderSocket.sendMock.mockClear();
 
       await service.emitToRelationship('rel-1', {
         type: RealtimeEventType.MONITORING_CONFIG_UPDATED,
@@ -154,18 +160,88 @@ describe('RealtimeService', () => {
         config: {},
       });
 
-      expect(monitorSocket.send).toHaveBeenCalledTimes(1);
-      expect(elderSocket.send).toHaveBeenCalledTimes(1);
+      expect(monitorSocket.sendMock).toHaveBeenCalledTimes(1);
+      expect(elderSocket.sendMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Redis Pub/Sub Echo Filtering & Error Handling', () => {
+    it('should ignore incoming Redis messages originating from its own instanceId (loopback filter)', () => {
+      const socket = createMockSocket();
+      service.registerClient('user-loopback', socket as unknown as WebSocket);
+      socket.sendMock.mockClear();
+
+      const listeners: Record<string, (channel: string, message: string) => void> = {};
+      const mockSubscriber = {
+        subscribe: vi.fn(),
+        on: vi.fn((event: string, cb: any) => {
+          listeners[event] = cb;
+        }),
+      };
+      const mockClient = {
+        duplicate: vi.fn().mockReturnValue(mockSubscriber),
+      };
+
+      (service as any).redisSubscriber = null;
+      (service as any).attachSubscriber(mockClient);
+
+      // 1. Simulate Redis message with the same instanceId (loopback)
+      listeners['message'](
+        'carely:realtime:events',
+        JSON.stringify({
+          instanceId: service.instanceId,
+          recipientUserId: 'user-loopback',
+          event: { type: RealtimeEventType.CHECK_IN_CONFIRMED, userId: 'user-loopback' },
+        }),
+      );
+
+      // Must be filtered out - not dispatched to local socket
+      expect(socket.sendMock).not.toHaveBeenCalled();
+
+      // 2. Simulate Redis message with a different instanceId
+      listeners['message'](
+        'carely:realtime:events',
+        JSON.stringify({
+          instanceId: 'remote-instance-other-uuid',
+          recipientUserId: 'user-loopback',
+          event: { type: RealtimeEventType.CHECK_IN_CONFIRMED, userId: 'user-loopback' },
+        }),
+      );
+
+      // Must be delivered locally
+      expect(socket.sendMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should attach an error listener on redisSubscriber to prevent unhandled error crashes', () => {
+      const listeners: Record<string, (err: any) => void> = {};
+      const mockSubscriber = {
+        subscribe: vi.fn(),
+        on: vi.fn((event: string, cb: any) => {
+          listeners[event] = cb;
+        }),
+      };
+      const mockClient = {
+        duplicate: vi.fn().mockReturnValue(mockSubscriber),
+      };
+
+      (service as any).redisSubscriber = null;
+      (service as any).attachSubscriber(mockClient);
+
+      expect(mockSubscriber.on).toHaveBeenCalledWith('error', expect.any(Function));
+      // Trigger error event to confirm it does not crash
+      expect(() => {
+        listeners['error'](new Error('Connection reset by peer'));
+      }).not.toThrow();
     });
   });
 
   describe('Graceful Shutdown', () => {
     it('should close all open sockets on module destroy', async () => {
-      const socket = createMockSocket() as unknown as WebSocket;
-      service.registerClient('user-1', socket);
+      const socket = createMockSocket();
+      service.registerClient('user-1', socket as unknown as WebSocket);
 
       await service.onModuleDestroy();
-      expect(socket.close).toHaveBeenCalledWith(1000, 'Server shutting down');
+      expect(socket.closeMock).toHaveBeenCalledWith(1000, 'Server shutting down');
       expect(service.getActiveSocketCount()).toBe(0);
     });
   });

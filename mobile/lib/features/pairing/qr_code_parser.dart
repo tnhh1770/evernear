@@ -1,16 +1,17 @@
 /// Parsing utility extracting pairing invite codes from QR payloads.
-/// Supports deep link URI scheme carely://invite?code=CR-XXXXXX,
-/// web URLs https://carely.app/invite?code=CR-XXXXXX, and raw codes CR-XXXXXX.
+/// Supports deep link URI scheme evernear://invite?code=CR-XXXXXX,
+/// web URLs https://evernear.app/invite?code=CR-XXXXXX, and raw codes CR-XXXXXX.
 class QrCodeParser {
   static String? extractInviteCode(String? raw) {
     if (raw == null) return null;
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;
 
-    // 1. Deep Link URI Scheme: carely://invite?code=CR-XXXXXX
+    // 1. Deep Link URI Scheme: evernear://invite?code=... or legacy carely://invite?code=...
     try {
       final uri = Uri.tryParse(trimmed);
-      if (uri != null && uri.scheme.toLowerCase() == 'carely') {
+      final scheme = uri?.scheme.toLowerCase();
+      if (uri != null && (scheme == 'carely' || scheme == 'evernear')) {
         final codeParam = uri.queryParameters['code'];
         if (codeParam != null && codeParam.trim().isNotEmpty) {
           return codeParam.trim().toUpperCase();
@@ -18,7 +19,7 @@ class QrCodeParser {
       }
     } catch (_) {}
 
-    // 2. Web URL: https://carely.app/invite?code=CR-XXXXXX
+    // 2. Web URL: https://evernear.app/invite?code=... or https://carely.app/invite?code=...
     try {
       final uri = Uri.tryParse(trimmed);
       if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
@@ -29,8 +30,8 @@ class QrCodeParser {
       }
     } catch (_) {}
 
-    // 3. Regex match for standard Carely prefix: CR-[A-Z0-9]{4,16}
-    final regExp = RegExp(r'(CR-[A-Z0-9]{4,16})', caseSensitive: false);
+    // 3. Regex match for standard pairing code prefix: (CR|EV)-[A-Z0-9]{4,16}
+    final regExp = RegExp(r'((?:CR|EV)-[A-Z0-9]{4,16})', caseSensitive: false);
     final match = regExp.firstMatch(trimmed);
     if (match != null) {
       return match.group(1)!.toUpperCase();
@@ -45,6 +46,6 @@ class QrCodeParser {
   }
 
   static String buildInviteUri(String code) {
-    return 'carely://invite?code=${code.trim().toUpperCase()}';
+    return 'evernear://invite?code=${code.trim().toUpperCase()}';
   }
 }

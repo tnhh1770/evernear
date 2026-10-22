@@ -79,6 +79,7 @@ describe('MonitoringWorkerService (Redlock Mutual Exclusion Unit Tests)', () => 
       innerJoinAndSelect: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
       take: vi.fn().mockReturnThis(),
       getMany: vi.fn().mockResolvedValue([config1]),
     };
@@ -128,6 +129,7 @@ describe('MonitoringWorkerService (Redlock Mutual Exclusion Unit Tests)', () => 
       innerJoinAndSelect: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
       take: vi.fn().mockReturnThis(),
       getMany: vi.fn().mockResolvedValue([config1]),
     };
@@ -177,6 +179,7 @@ describe('MonitoringWorkerService (Redlock Mutual Exclusion Unit Tests)', () => 
       innerJoinAndSelect: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
       take: vi.fn().mockReturnThis(),
       getMany: vi.fn().mockResolvedValue([config1]),
     };
@@ -199,5 +202,25 @@ describe('MonitoringWorkerService (Redlock Mutual Exclusion Unit Tests)', () => 
     expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
     // No lock was acquired, so no release call
     expect(mockRedisService.releaseLock).not.toHaveBeenCalled();
+  });
+
+  it('4. targets pessimistic row lock to config table and orders by nextEvaluationAt ASC', async () => {
+    const qb: any = {
+      setLock: vi.fn().mockReturnThis(),
+      setOnLocked: vi.fn().mockReturnThis(),
+      innerJoinAndSelect: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      take: vi.fn().mockReturnThis(),
+      getMany: vi.fn().mockResolvedValue([]),
+    };
+    mockQueryRunner.manager.createQueryBuilder.mockReturnValue(qb);
+
+    await worker.evaluateDueMonitoring(10);
+
+    expect(qb.setLock).toHaveBeenCalledWith('pessimistic_write', undefined, ['config']);
+    expect(qb.setOnLocked).toHaveBeenCalledWith('skip_locked');
+    expect(qb.orderBy).toHaveBeenCalledWith('config.nextEvaluationAt', 'ASC');
   });
 });

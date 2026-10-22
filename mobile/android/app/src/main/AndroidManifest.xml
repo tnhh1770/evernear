@@ -13,7 +13,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
-        android:label="Carely"
+        android:label="Evernear"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
@@ -39,18 +39,19 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- Deep Link Scheme for Family QR Pairing: carely://invite?code=... -->
+            <!-- Deep Link Scheme for Family QR Pairing: evernear://invite?code=... -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="evernear" android:host="invite" />
                 <data android:scheme="carely" android:host="invite" />
             </intent-filter>
         </activity>
         <!-- Firebase Cloud Messaging Default Notification Channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="carely_alerts_channel" />
+            android:value="evernear_alerts_channel" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

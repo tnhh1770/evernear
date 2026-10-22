@@ -30,6 +30,21 @@ export class DevicesService {
   }
 
   async registerDevice(userId: string, dto: RegisterDeviceDto) {
+    const resolvedPushToken = dto.pushToken ?? dto.fcmToken;
+
+    if (resolvedPushToken && resolvedPushToken.trim().length > 0) {
+      await this.deviceRepository
+        .createQueryBuilder()
+        .update(Device)
+        .set({ pushToken: null as any })
+        .where('push_token = :token AND user_id != :userId', {
+          token: resolvedPushToken,
+          userId,
+        })
+        .execute()
+        .catch(() => {});
+    }
+
     let device = await this.deviceRepository.findOne({
       where: { userId, deviceUid: dto.deviceUid },
     });
@@ -38,7 +53,7 @@ export class DevicesService {
       // Re-activate if revoked earlier and updating
       device.deviceName = dto.deviceName;
       device.platform = dto.platform;
-      if (dto.pushToken !== undefined) device.pushToken = dto.pushToken;
+      if (resolvedPushToken !== undefined) device.pushToken = resolvedPushToken;
       if (dto.appVersion !== undefined) device.appVersion = dto.appVersion;
       if (dto.osVersion !== undefined) device.osVersion = dto.osVersion;
       if (dto.batteryLevel !== undefined) device.batteryLevel = dto.batteryLevel;
@@ -56,7 +71,7 @@ export class DevicesService {
       deviceUid: dto.deviceUid,
       platform: dto.platform,
       deviceName: dto.deviceName,
-      pushToken: dto.pushToken,
+      pushToken: resolvedPushToken,
       appVersion: dto.appVersion,
       osVersion: dto.osVersion,
       batteryLevel: dto.batteryLevel,

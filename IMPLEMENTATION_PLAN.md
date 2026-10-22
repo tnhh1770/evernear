@@ -67,7 +67,7 @@ PostgreSQL is the single Source of Truth. The following relational structure wil
 8. **`check_ins`**:
    - `id` (UUID PK), `event_id` (UUID unique), `user_id` (FK), `device_id` (FK), `relationship_id` (FK nullable), `occurred_at`, `received_at`, `battery_level`, `note`, `created_at`.
 9. **`incidents`**:
-   - `id` (UUID PK), `user_id` (FK), `relationship_id` (FK), `status` (`OPEN`, `ESCALATED`, `ACKNOWLEDGED`, `RESOLVED`, `CANCELLED`), `reason` (`INACTIVITY`, `MISSED_CHECK_IN`, `DEVICE_OFFLINE`, `MANUAL_SOS`), `risk_score`, `detected_at`, `last_activity_at`, `last_heartbeat_at`, `last_location_id`, `check_in_deadline`, `escalated_at`, `acknowledged_at`, `acknowledged_by`, `resolved_at`, `resolved_by`, `next_action_at`, `created_at`, `updated_at`.
+   - `id` (UUID PK), `user_id` (FK), `relationship_id` (FK), `status` (`OPEN`, `ESCALATED`, `ACKNOWLEDGED`, `RESOLVED`, `CANCELLED`), `reason` (`INACTIVITY`, `MISSED_CHECK_IN`, `DEVICE_OFFLINE`), `risk_score`, `detected_at`, `last_activity_at`, `last_heartbeat_at`, `last_location_id`, `check_in_deadline`, `escalated_at`, `acknowledged_at`, `acknowledged_by`, `resolved_at`, `resolved_by`, `next_action_at`, `created_at`, `updated_at`.
 10. **`incident_events`**:
     - `id` (UUID PK), `incident_id` (FK), `type` (`INCIDENT_CREATED`, `CHECK_IN_REQUESTED`, `PUSH_SENT`, `PUSH_FAILED`, `REMINDER_SENT`, `WARNING_TRIGGERED`, `ESCALATION_TRIGGERED`, `MONITOR_NOTIFIED`, `MONITOR_ACKNOWLEDGED`, `INCIDENT_RESOLVED`), `timestamp`, `metadata` (JSONB), `created_at`.
 11. **`locations`**:

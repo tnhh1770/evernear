@@ -11,10 +11,14 @@ class PermissionService {
   /// Request notification permission gracefully (Android 13+ & iOS).
   /// Never crashes or blocks the user if denied.
   Future<bool> requestNotificationPermission() async {
+    if (kIsWeb) return false;
 
     try {
       final status = await Permission.notification.status;
       if (status.isGranted) return true;
+      if (status.isPermanentlyDenied || status.isRestricted) {
+        return false;
+      }
 
       final result = await Permission.notification.request();
       debugPrint('[PermissionService] Notification permission result: ${result.name}');

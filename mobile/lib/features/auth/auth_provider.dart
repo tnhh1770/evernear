@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:battery_plus/battery_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -15,6 +16,16 @@ import '../../core/services/heartbeat_service.dart';
 import '../../core/storage/local_storage.dart';
 
 class AuthProvider with ChangeNotifier {
+  static final List<VoidCallback> _onLogoutCallbacks = [];
+  static void addLogoutCallback(VoidCallback callback) {
+    if (!_onLogoutCallbacks.contains(callback)) {
+      _onLogoutCallbacks.add(callback);
+    }
+  }
+  static void removeLogoutCallback(VoidCallback callback) {
+    _onLogoutCallbacks.remove(callback);
+  }
+
   final ApiClient _apiClient = ApiClient();
 
   UserModel? _currentUser;
@@ -78,11 +89,8 @@ class AuthProvider with ChangeNotifier {
           _currentUser = UserModel.fromJson(response.data);
           await LocalStorage.saveUserProfile(response.data);
           _isAuthenticated = true;
-          // Register device if not yet cached locally
-          final savedDeviceId = await LocalStorage.getDeviceId();
-          if (savedDeviceId == null || savedDeviceId.isEmpty) {
-            await _registerCurrentDevice();
-          }
+          // Always ensure device and push token are registered and up-to-date
+          await _registerCurrentDevice();
 
           // Start background & activity listeners
           HeartbeatService().start();
@@ -268,6 +276,33 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
+  /// Ensure current user profile is loaded from cache/backend
+  Future<void> refreshProfile() async {
+    try {
+      if (_currentUser == null) {
+        final cached = await LocalStorage.getUserProfile();
+        if (cached != null) {
+          _currentUser = cached;
+          notifyListeners();
+        }
+      }
+      final token = await LocalStorage.getAccessToken();
+      if (token == null || token.isEmpty) return;
+      final response = await _apiClient.dio.get(ApiEndpoints.profile);
+      if (response.statusCode == 200 && response.data is Map) {
+        final map = Map<String, dynamic>.from(response.data as Map);
+        _currentUser = UserModel.fromJson(map);
+        if (_currentUser!.fullName.isNotEmpty) {
+          await LocalStorage.updateUserName(_currentUser!.fullName);
+        }
+        await LocalStorage.saveUserProfile(_currentUser!.toJson());
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[AuthProvider] Refresh profile error: $e');
+    }
+  }
+
   /// Update user profile (Name, Phone, Avatar, Preferred Language)
   Future<bool> updateProfile({
     String? fullName,
@@ -280,6 +315,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      _currentUser ??= await LocalStorage.getUserProfile();
+
       final response = await _apiClient.dio.patch(
         ApiEndpoints.updateProfile,
         data: {
@@ -292,7 +329,20 @@ class AuthProvider with ChangeNotifier {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        if (_currentUser != null) {
+        if (response.data is Map) {
+          final serverUser = UserModel.fromJson(
+            Map<String, dynamic>.from(response.data as Map),
+          );
+          _currentUser = serverUser.copyWith(
+            fullName: (fullName != null && fullName.trim().isNotEmpty)
+                ? fullName.trim()
+                : serverUser.fullName,
+            phone: phone != null ? phone.trim() : serverUser.phone,
+            avatarUrl: avatarUrl != null ? avatarUrl.trim() : serverUser.avatarUrl,
+            preferredLanguage: preferredLanguage?.trim().toLowerCase() ??
+                serverUser.preferredLanguage,
+          );
+        } else if (_currentUser != null) {
           _currentUser = _currentUser!.copyWith(
             fullName: fullName?.trim() ?? _currentUser!.fullName,
             phone: phone?.trim() ?? _currentUser!.phone,
@@ -300,8 +350,11 @@ class AuthProvider with ChangeNotifier {
             preferredLanguage: preferredLanguage?.trim().toLowerCase() ??
                 _currentUser!.preferredLanguage,
           );
-          if (fullName != null && fullName.trim().isNotEmpty) {
-            await LocalStorage.updateUserName(fullName.trim());
+        }
+
+        if (_currentUser != null) {
+          if (_currentUser!.fullName.isNotEmpty) {
+            await LocalStorage.updateUserName(_currentUser!.fullName);
           }
           await LocalStorage.saveUserProfile(_currentUser!.toJson());
         }
@@ -376,8 +429,29 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Pause/suspend any active family monitoring relationships before soft-deleting user
+      try {
+        final relRes = await _apiClient.dio.get(ApiEndpoints.relationships);
+        if (relRes.statusCode == 200 && relRes.data is Map) {
+          final data = relRes.data as Map;
+          final List allRels = [
+            ...((data['monitoring'] as List?) ?? const []),
+            ...((data['monitoredBy'] as List?) ?? const []),
+          ];
+          for (final item in allRels) {
+            if (item is Map && item['id'] != null) {
+              final relId = item['id'].toString();
+              await _apiClient.dio
+                  .post(ApiEndpoints.pauseMonitoring(relId))
+                  .catchError((_) => Response(requestOptions: RequestOptions(path: '')));
+            }
+          }
+        }
+      } catch (_) {}
+
       final response = await _apiClient.dio.delete(ApiEndpoints.deleteAccount);
       if (response.statusCode == 200 || response.statusCode == 204) {
+        _isLoading = false;
         await logout();
         return true;
       }
@@ -398,15 +472,32 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
+  Future<void> registerCurrentDevice() => _registerCurrentDevice();
+
   Future<void> _registerCurrentDevice() async {
     try {
       final bool isIOS = !kIsWeb && (Platform.isIOS || defaultTargetPlatform == TargetPlatform.iOS);
       final DevicePlatform platform = isIOS ? DevicePlatform.IOS : DevicePlatform.ANDROID;
       final deviceUid = await LocalStorage.getOrCreateDeviceUid();
-      final deviceName = kIsWeb ? 'Web Browser' : (isIOS ? 'iOS Device' : 'Android Device');
-      final deviceModel = kIsWeb ? 'Browser Client' : (isIOS ? 'Apple iPhone' : 'Android Device');
+      final deviceName = kIsWeb
+          ? AppLocalizations.staticTr('device_browser_web', args: {'platform': defaultTargetPlatform.name})
+          : (isIOS
+              ? AppLocalizations.staticTr('device_ios')
+              : AppLocalizations.staticTr('device_android'));
       final osVersion = kIsWeb ? 'Web' : Platform.operatingSystemVersion;
-      final fcmToken = FcmService().fcmToken;
+      String? fcmToken = FcmService().fcmToken;
+      if (fcmToken == null || fcmToken.isEmpty) {
+        fcmToken = await FcmService().getToken();
+      }
+
+      int? batteryLevel;
+      bool? isCharging;
+      try {
+        final battery = Battery();
+        batteryLevel = await battery.batteryLevel;
+        final state = await battery.batteryState;
+        isCharging = (state == BatteryState.charging || state == BatteryState.full);
+      } catch (_) {}
 
       final response = await _apiClient.dio.post(
         ApiEndpoints.devices,
@@ -414,10 +505,11 @@ class AuthProvider with ChangeNotifier {
           'deviceUid': deviceUid,
           'deviceName': deviceName,
           'platform': platform.name,
-          'deviceModel': deviceModel,
           'osVersion': osVersion,
           'appVersion': '1.0.0',
           if (fcmToken != null && fcmToken.isNotEmpty) 'pushToken': fcmToken,
+          if (batteryLevel != null) 'batteryLevel': batteryLevel,
+          if (isCharging != null) 'isCharging': isCharging,
         },
       );
 
@@ -425,6 +517,16 @@ class AuthProvider with ChangeNotifier {
         final deviceId = response.data['id'] as String;
         await LocalStorage.saveDeviceId(deviceId);
         debugPrint('[AuthProvider] Registered device ID: $deviceId, UID: $deviceUid, FCM Token: $fcmToken');
+
+        // If pushToken is available, ensure it's explicitly stored
+        if (fcmToken != null && fcmToken.isNotEmpty) {
+          try {
+            await _apiClient.dio.patch(
+              '${ApiEndpoints.devices}/$deviceId/push-token',
+              data: {'pushToken': fcmToken},
+            );
+          } catch (_) {}
+        }
       }
 
       // Sync refreshed push token to backend whenever FCM updates it
@@ -447,14 +549,41 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> logout() async {
+  Future<void> logout({
+    dynamic dashboardProvider,
+    dynamic incidentsProvider,
+  }) async {
+    try {
+      final deviceId = await LocalStorage.getDeviceId();
+      if (deviceId != null && deviceId.isNotEmpty) {
+        await _apiClient.dio.post('${ApiEndpoints.devices}/$deviceId/revoke').catchError((_) => Response(requestOptions: RequestOptions(path: '')));
+      }
+    } catch (e) {
+      debugPrint('[AuthProvider] Logout device revoke error: $e');
+    }
+
     RealtimeService().disconnect();
     HeartbeatService().stop();
     ActivityTrackerService().dispose();
     await LocalStorage.clearAuth();
     _currentUser = null;
     _isAuthenticated = false;
+    _isLoading = false;
     _clearError();
+
+    // Reset cached states across dashboard and incidents providers (MEM-03)
+    try {
+      dashboardProvider?.clearState();
+    } catch (_) {}
+    try {
+      incidentsProvider?.clearState();
+    } catch (_) {}
+    for (final callback in List.of(_onLogoutCallbacks)) {
+      try {
+        callback();
+      } catch (_) {}
+    }
+
     notifyListeners();
   }
 }

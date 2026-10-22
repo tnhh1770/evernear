@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WebSocket } from 'ws';
+import { randomUUID } from 'crypto';
 import { RedisService } from '../../common/redis/redis.service';
 import { MonitoringRelationship } from '../monitoring/entities/monitoring-relationship.entity';
 import { RelationshipStatus } from '../../common/enums';
@@ -15,6 +16,7 @@ import { RealtimeEvent } from './realtime.interface';
 const REALTIME_REDIS_CHANNEL = 'carely:realtime:events';
 
 interface RedisRealtimeMessage {
+  instanceId?: string;
   recipientUserId: string;
   event: RealtimeEvent;
 }
@@ -22,6 +24,7 @@ interface RedisRealtimeMessage {
 @Injectable()
 export class RealtimeService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RealtimeService.name);
+  readonly instanceId = randomUUID();
   private readonly userSockets = new Map<string, Set<WebSocket>>();
   private redisSubscriber: any = null;
 
@@ -38,15 +41,21 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy() {
     if (this.redisSubscriber) {
       try {
-        await this.redisSubscriber.quit();
+        if (typeof this.redisSubscriber.quit === 'function') {
+          await this.redisSubscriber.quit();
+        } else if (typeof this.redisSubscriber.disconnect === 'function') {
+          this.redisSubscriber.disconnect();
+        }
       } catch {
-        this.redisSubscriber.disconnect();
+        if (typeof this.redisSubscriber.disconnect === 'function') {
+          this.redisSubscriber.disconnect();
+        }
       } finally {
         this.redisSubscriber = null;
       }
     }
     // Close remaining sockets gracefully
-    for (const [userId, sockets] of this.userSockets.entries()) {
+    for (const sockets of this.userSockets.values()) {
       for (const ws of sockets) {
         try {
           ws.close(1000, 'Server shutting down');
@@ -89,6 +98,9 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
     if (this.redisSubscriber) return;
     try {
       this.redisSubscriber = client.duplicate({ enableOfflineQueue: true });
+      this.redisSubscriber.on('error', (err: any) => {
+        this.logger.warn(`Redis subscriber connection error: ${err.message}`);
+      });
       this.redisSubscriber.subscribe(REALTIME_REDIS_CHANNEL, (err: any) => {
         if (err) {
           this.logger.warn(`Failed to subscribe to Redis channel: ${err.message}`);
@@ -103,6 +115,10 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
           let payload = JSON.parse(messageStr);
           if (typeof payload === 'string') {
             payload = JSON.parse(payload);
+          }
+          // Filter loopback messages from own instance to eliminate duplicate 2x event delivery
+          if (payload?.instanceId === this.instanceId) {
+            return;
           }
           if (payload?.recipientUserId && payload?.event) {
             this.sendLocal(payload.recipientUserId, payload.event);
@@ -201,6 +217,7 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
       const client = this.redisService.getClient();
       if (client) {
         const payload: RedisRealtimeMessage = {
+          instanceId: this.instanceId,
           recipientUserId: userId,
           event: enrichedEvent,
         };

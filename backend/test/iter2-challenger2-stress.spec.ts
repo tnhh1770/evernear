@@ -231,13 +231,13 @@ describe('Challenger 2 Iteration 2 Adversarial Stress Harness', () => {
       expect(smsDelivery.channel).toBe(NotificationChannelType.SMS);
       expect(smsDelivery.status).toBe(NotificationDeliveryStatus.SENT);
       expect(smsDelivery.recipientTarget).toBe('+4915123456789');
-      expect(smsDelivery.payload.title).toBe('Carely — Erinnerung zur Bestätigung');
+      expect(smsDelivery.payload.title).toBe('Evernear — Erinnerung zur Bestätigung');
       expect(smsDelivery.payload.body).toContain('tippen Sie hier');
 
       expect(smsChannel.send).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientTarget: '+4915123456789',
-          title: 'Carely — Erinnerung zur Bestätigung',
+          title: 'Evernear — Erinnerung zur Bestätigung',
         }),
       );
     });
@@ -272,7 +272,7 @@ describe('Challenger 2 Iteration 2 Adversarial Stress Harness', () => {
       expect(deliveries[2].channel).toBe(NotificationChannelType.TELEGRAM);
       expect(deliveries[2].status).toBe(NotificationDeliveryStatus.SENT);
       expect(deliveries[2].recipientTarget).toBe('chat-999888');
-      expect(deliveries[2].payload.title).toBe('Carely — ご確認のお願い');
+      expect(deliveries[2].payload.title).toBe('Evernear — ご確認のお願い');
     });
 
     it('2.3 should cascade properly with unsupported locale "xx", falling back to English templates and dispatching SMS', async () => {
@@ -294,7 +294,7 @@ describe('Challenger 2 Iteration 2 Adversarial Stress Harness', () => {
       expect(deliveries).toHaveLength(2);
       expect(deliveries[1].channel).toBe(NotificationChannelType.SMS);
       expect(deliveries[1].status).toBe(NotificationDeliveryStatus.SENT);
-      expect(deliveries[1].payload.title).toBe('Carely — Reassured');
+      expect(deliveries[1].payload.title).toBe('Evernear — Reassured');
       expect(deliveries[1].payload.body).toContain('Dr. John has confirmed normal activity');
     });
 
@@ -317,7 +317,7 @@ describe('Challenger 2 Iteration 2 Adversarial Stress Harness', () => {
       expect(deliveries[0].channel).toBe(NotificationChannelType.SMS);
       expect(deliveries[0].status).toBe(NotificationDeliveryStatus.SENT);
       expect(deliveries[0].recipientTarget).toBe('+84933334444');
-      expect(deliveries[0].payload.title).toBe('Carely — Tout va bien ?');
+      expect(deliveries[0].payload.title).toBe('Evernear — Tout va bien ?');
     });
   });
 });

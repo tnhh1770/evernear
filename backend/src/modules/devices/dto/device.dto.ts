@@ -28,6 +28,10 @@ export class RegisterDeviceDto {
 
   @IsOptional()
   @IsString()
+  fcmToken?: string;
+
+  @IsOptional()
+  @IsString()
   appVersion?: string;
 
   @IsOptional()
@@ -46,7 +50,11 @@ export class RegisterDeviceDto {
 }
 
 export class UpdateDeviceTokenDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  pushToken: string;
+  pushToken?: string;
+
+  @IsOptional()
+  @IsString()
+  fcmToken?: string;
 }

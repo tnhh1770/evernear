@@ -259,13 +259,13 @@ void main() {
 
       final textField = find.byType(TextField);
 
-      for (final badVal in ['-1', '-500', '0', '1', '14']) {
+      for (final badVal in ['-1', '-500', '0']) {
         await tester.enterText(textField, badVal);
         await tester.pumpAndSettle();
         await tester.tap(find.text('Áp dụng'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Số phút phải từ 15 đến 1440 (24 giờ)'), findsOneWidget,
+        expect(find.text('Số phút phải từ 1 đến 1440 (24 giờ)'), findsOneWidget,
             reason: 'Value "$badVal" should trigger range error');
         expect(find.text('Tùy biến thời gian'), findsOneWidget);
       }
@@ -297,7 +297,7 @@ void main() {
         await tester.tap(find.text('Áp dụng'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Số phút phải từ 15 đến 1440 (24 giờ)'), findsOneWidget,
+        expect(find.text('Số phút phải từ 1 đến 1440 (24 giờ)'), findsOneWidget,
             reason: 'Value "$highVal" should trigger range error');
         expect(find.text('Tùy biến thời gian'), findsOneWidget);
       }
@@ -307,7 +307,7 @@ void main() {
       expect(find.text('Tùy biến thời gian'), findsNothing);
     });
 
-    testWidgets('Exact min "15" and exact max "1440" are accepted', (tester) async {
+    testWidgets('Exact min "1" and exact max "1440" are accepted', (tester) async {
       setLargeViewport(tester);
       final rel = createTestRelationshipWith(inactivityThresholdMinutes: 60);
 
@@ -318,16 +318,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Test exact min 15
+      // Test exact min 1
       await tester.tap(findCustomChip());
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), '15');
+      await tester.enterText(find.byType(TextField), '1');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Áp dụng'));
       await tester.pumpAndSettle();
 
       expect(find.text('Tùy biến thời gian'), findsNothing); // Dialog dismissed
-      expect(find.text('15 phút'), findsAtLeastNWidgets(1));
+      expect(find.text('1 phút'), findsAtLeastNWidgets(1));
 
       // Test exact max 1440
       await tester.tap(findCustomChip());

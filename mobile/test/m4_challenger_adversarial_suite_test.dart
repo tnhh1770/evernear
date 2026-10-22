@@ -95,7 +95,7 @@ void main() {
         final l10n = AppLocalizations(Locale(code));
         expect(l10n.tr('check_in_button'), equals('I am okay'),
             reason: 'Hostile locale "$code" must fall back to English');
-        expect(l10n.tr('app_name'), equals('Carely'),
+        expect(l10n.tr('app_name'), equals('Evernear'),
             reason: 'Hostile locale "$code" must resolve app_name');
       }
     });

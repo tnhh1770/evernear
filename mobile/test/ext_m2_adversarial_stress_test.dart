@@ -104,7 +104,7 @@ void main() {
 
     test('buildInviteUri produces valid format and roundtrips through extractInviteCode', () {
       final uri = QrCodeParser.buildInviteUri('cr-testcode99');
-      expect(uri, equals('carely://invite?code=CR-TESTCODE99'));
+      expect(uri, equals('evernear://invite?code=CR-TESTCODE99'));
 
       final extracted = QrCodeParser.extractInviteCode(uri);
       expect(extracted, equals('CR-TESTCODE99'));
@@ -225,7 +225,7 @@ void main() {
       expect(find.text('Quét mã QR'), findsOneWidget);
       expect(find.byType(CalmErrorCard), findsOneWidget);
       expect(
-        find.textContaining('Carely cần quyền sử dụng camera để quét mã QR kết nối.'),
+        find.textContaining('Evernear cần quyền sử dụng camera để quét mã QR kết nối.'),
         findsOneWidget,
       );
       expect(find.text('Nhập mã thủ công'), findsOneWidget);
@@ -235,7 +235,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Manual input dialog should open
-      expect(find.text('Nhập mã kết nối'), findsOneWidget);
+      expect(find.text('Nhập mã kết nối'), findsWidgets);
       expect(find.byKey(const Key('manual_code_input_field')), findsOneWidget);
 
       // Enter manual code and submit

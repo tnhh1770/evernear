@@ -1,15 +1,31 @@
 class ApiEndpoints {
-  // Configurable base URL. Default to localhost:3001 for local testing / emulator
-  static String baseUrl = 'http://127.0.0.1:3001/api/v1';
+  // Configurable base URL. Default to LAN IP for physical device / Wi-Fi testing
+  static const String _defaultUrl = String.fromEnvironment(
+    'BASE_URL',
+    defaultValue: 'http://192.168.110.7:3001/api/v1',
+  );
+  static String baseUrl = _defaultUrl;
+
+  // Configurable Web Landing URL for external browser redirects from the mobile app
+  static const String _defaultWebLandingUrl = String.fromEnvironment(
+    'WEB_LANDING_URL',
+    defaultValue: 'http://192.168.110.7:44603',
+  );
+  static String webLandingUrl = _defaultWebLandingUrl;
+
+  static Uri resolveWebLandingUri([String path = '/']) {
+    final trimmedBase = webLandingUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final normalizedPath = path.trim().isEmpty
+        ? '/'
+        : (path.trim().startsWith('/') ? path.trim() : '/${path.trim()}');
+    return Uri.parse('$trimmedBase$normalizedPath');
+  }
 
   // Auth
   static const String register = '/auth/register';
   static const String login = '/auth/login';
   static const String refresh = '/auth/refresh';
   static const String profile = '/auth/me';
-  static const String googleAuth = '/auth/google';
-  static const String appleAuth = '/auth/apple';
-  static const String firebaseAuth = '/auth/firebase';
   static const String deleteAccount = '/users/me';
   static const String updateProfile = '/users/me';
   static const String changePassword = '/auth/change-password';
@@ -42,6 +58,8 @@ class ApiEndpoints {
   static String incidentDetail(String id) => '/incidents/$id';
   static String acknowledgeIncident(String id) => '/incidents/$id/acknowledge';
   static String resolveIncident(String id) => '/incidents/$id/resolve';
+  static String deleteIncident(String id) => '/incidents/$id';
+  static const String clearIncidents = '/incidents';
 
   // Locations
   static const String locations = '/locations';

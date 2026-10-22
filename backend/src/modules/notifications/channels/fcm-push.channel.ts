@@ -171,7 +171,7 @@ export class FcmPushChannel implements INotificationChannel, OnModuleInit {
         android: {
           priority: 'high',
           notification: {
-            channelId: 'carely_alerts_channel',
+            channelId: 'evernear_alerts_channel',
             sound: 'default',
             clickAction: 'FLUTTER_NOTIFICATION_CLICK',
           },

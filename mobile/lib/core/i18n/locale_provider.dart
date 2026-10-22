@@ -1,4 +1,3 @@
-import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_endpoints.dart';
@@ -11,7 +10,8 @@ import 'locale_catalog_registry.dart';
 /// Provider managing application locale state, device auto-detection,
 /// persistent storage in SharedPreferences, and asynchronous backend synchronization.
 class LocaleProvider with ChangeNotifier {
-  static const String prefKeyLocale = 'carely_app_locale';
+  static const String prefKeyLocale = 'evernear_app_locale';
+  static const String _legacyPrefKeyLocale = 'carely_app_locale';
   static const String autoDetectValue = 'auto';
   static const Locale defaultLocale = Locale('vi');
 
@@ -37,7 +37,8 @@ class LocaleProvider with ChangeNotifier {
   String get currentLanguageDisplayName {
     final lang = currentLanguage;
     if (_isDeviceDefault) {
-      return '${lang.nativeName} (Tự động)';
+      final autoLabel = AppLocalizations.staticTr('common_auto', fallback: 'Tự động');
+      return '${lang.nativeName} ($autoLabel)';
     }
     return lang.nativeName;
   }
@@ -52,20 +53,21 @@ class LocaleProvider with ChangeNotifier {
   }
 
   /// Initializes locale state on app startup.
-  /// 1. Reads 'carely_app_locale' from SharedPreferences.
-  /// 2. If absent or empty, defaults to English ('en').
-  /// 3. If 'auto', detects device locale via PlatformDispatcher.
-  /// 4. If explicit language code, validates against catalog or falls back to 'en'.
+  /// 1. Reads 'evernear_app_locale' (or legacy 'carely_app_locale') from SharedPreferences.
+  /// 2. If absent, empty, or 'auto', defaults to Vietnamese ('vi').
+  /// 3. If explicit language code, validates against catalog or falls back to 'vi'.
   Future<void> initialize() async {
     if (_isInitialized) return;
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedLocaleCode = prefs.getString(prefKeyLocale);
+      final savedLocaleCode =
+          prefs.getString(prefKeyLocale) ?? prefs.getString(_legacyPrefKeyLocale);
 
-      if (savedLocaleCode == null ||
-          savedLocaleCode.isEmpty ||
-          savedLocaleCode == autoDetectValue) {
+      if (savedLocaleCode == autoDetectValue) {
+        _isDeviceDefault = true;
+        _currentLocale = _detectDeviceLocale();
+      } else if (savedLocaleCode == null || savedLocaleCode.isEmpty) {
         _isDeviceDefault = true;
         _currentLocale = defaultLocale;
       } else {
@@ -87,27 +89,22 @@ class LocaleProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Detects device system locale via PlatformDispatcher and matches against catalog.
+  /// Canonical default locale is always Vietnamese ('vi').
   Locale _detectDeviceLocale() {
-    try {
-      final deviceLocale = PlatformDispatcher.instance.locale;
-      final langCode = deviceLocale.languageCode.toLowerCase();
-
-      if (LocaleCatalogRegistry.isSupported(langCode)) {
-        return Locale(langCode);
-      }
-    } catch (e) {
-      debugPrint('[LocaleProvider] Error detecting device locale: $e');
-    }
     return defaultLocale;
   }
 
   /// Sets an explicit locale, persists to SharedPreferences, syncs to backend,
-  /// and immediately triggers reactive rebuild of the widget tree.
+  /// and immediately triggers reactive rebuild of the widget tree only if locale actually changed.
   Future<void> setLocale(Locale newLocale, {AuthProvider? authProvider}) async {
     final langCode = newLocale.languageCode.toLowerCase();
     if (!LocaleCatalogRegistry.isSupported(langCode)) {
       debugPrint('[LocaleProvider] Unsupported locale: $langCode, ignoring');
+      return;
+    }
+
+    // Do nothing if already set to this locale and not in auto mode
+    if (_currentLocale.languageCode == langCode && !_isDeviceDefault) {
       return;
     }
 
@@ -131,8 +128,13 @@ class LocaleProvider with ChangeNotifier {
 
   /// Switches back to auto-detecting system device language.
   Future<void> setDeviceLocale({AuthProvider? authProvider}) async {
+    final detected = _detectDeviceLocale();
+    if (_isDeviceDefault && _currentLocale.languageCode == detected.languageCode) {
+      return; // Already auto and matched
+    }
+
     _isDeviceDefault = true;
-    _currentLocale = _detectDeviceLocale();
+    _currentLocale = detected;
     AppLocalizations.globalLocaleCode = _currentLocale.languageCode;
 
     try {
@@ -155,9 +157,13 @@ class LocaleProvider with ChangeNotifier {
     final langCode = backendLanguageCode.trim().toLowerCase();
     if (!LocaleCatalogRegistry.isSupported(langCode)) return;
 
+    if (_currentLocale.languageCode == langCode && !_isDeviceDefault) {
+      return; // Already matches current active locale, skip
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedPref = prefs.getString(prefKeyLocale);
+      final savedPref = prefs.getString(prefKeyLocale) ?? prefs.getString(_legacyPrefKeyLocale);
 
       // If user on this device explicitly selected auto-detect, keep it unless forced
       if (savedPref == autoDetectValue && !force) {
@@ -180,6 +186,9 @@ class LocaleProvider with ChangeNotifier {
   void _syncWithBackend(String languageCode, {AuthProvider? authProvider}) async {
     try {
       if (authProvider != null && authProvider.currentUser != null) {
+        if (authProvider.currentUser?.preferredLanguage == languageCode) {
+          return; // Already in sync, avoid duplicate network request
+        }
         authProvider.updateUserPreferredLanguage(languageCode);
       }
 
@@ -198,4 +207,26 @@ class LocaleProvider with ChangeNotifier {
       debugPrint('[LocaleProvider] Backend sync deferred/offline: $e');
     }
   }
+
+  /// Explicitly synchronizes the current active locale to the authenticated user's profile and backend.
+  /// Calls AuthProvider.updateUserPreferredLanguage and issues PATCH /api/v1/users/me.
+  Future<void> syncCurrentLocaleToUser(AuthProvider authProvider) async {
+    final langCode = _currentLocale.languageCode;
+    authProvider.updateUserPreferredLanguage(langCode);
+
+    try {
+      final token = await LocalStorage.getAccessToken();
+      final isAuth = authProvider.isAuthenticated || token != null;
+      if (isAuth && token != null) {
+        final response = await _apiClient.dio.patch(
+          ApiEndpoints.updateProfile,
+          data: {'preferredLanguage': langCode},
+        );
+        debugPrint('[LocaleProvider] Synced active locale ($langCode) to backend: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[LocaleProvider] Error syncing locale to backend: $e');
+    }
+  }
 }
+

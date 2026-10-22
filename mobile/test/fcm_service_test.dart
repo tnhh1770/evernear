@@ -18,8 +18,8 @@ void main() {
     });
 
     test('2. Constants match NOTIFICATION.md specifications', () {
-      expect(FcmService.notificationChannelId, 'carely_alerts_channel');
-      expect(FcmService.notificationChannelName, 'Carely Alerts & Check-Ins');
+      expect(FcmService.notificationChannelId, 'evernear_alerts_channel');
+      expect(FcmService.notificationChannelName, 'Evernear Alerts & Check-Ins');
       expect(FcmService.notificationChannelDesc, contains('check-in'));
     });
 

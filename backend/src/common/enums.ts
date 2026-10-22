@@ -42,7 +42,6 @@ export enum IncidentReason {
   INACTIVITY = 'INACTIVITY',
   MISSED_CHECK_IN = 'MISSED_CHECK_IN',
   DEVICE_OFFLINE = 'DEVICE_OFFLINE',
-  MANUAL_SOS = 'MANUAL_SOS',
 }
 
 export enum IncidentEventType {
@@ -71,6 +70,7 @@ export enum NotificationDeliveryStatus {
   SENT = 'SENT',
   DELIVERED = 'DELIVERED',
   FAILED = 'FAILED',
+  EXHAUSTED = 'EXHAUSTED',
   CANCELLED = 'CANCELLED',
 }
 

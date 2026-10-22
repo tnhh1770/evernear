@@ -464,8 +464,10 @@ export class AuthService {
     }
 
     const isTest =
-      process.env.NODE_ENV !== 'production' &&
-      (token.startsWith('mock-apple-') || token.startsWith('apple-test-') || token.startsWith('apple-'));
+      (process.env.NODE_ENV === 'test' || process.env.NODE_ENV !== 'production') &&
+      (token.startsWith('mock-apple-') ||
+        token.startsWith('apple-test-') ||
+        (process.env.NODE_ENV === 'test' && token.startsWith('apple-')));
 
     if (isTest) {
       if (token.includes('.')) {
@@ -497,17 +499,33 @@ export class AuthService {
 
     // Live token verification for Apple
     try {
-      const decoded = this.jwtService.decode(token) as any;
-      if (!decoded || !decoded.sub) {
-        throw new UnauthorizedException('Invalid Apple identity token payload');
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        throw new UnauthorizedException('Malformed Apple identity token structure');
       }
-      if (decoded.iss && decoded.iss !== 'https://appleid.apple.com') {
+
+      let header: any;
+      try {
+        header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+      } catch {
+        throw new UnauthorizedException('Invalid Apple token header');
+      }
+
+      if (header?.alg && header.alg !== 'RS256') {
+        throw new UnauthorizedException(`Unsupported Apple token algorithm: ${header.alg}`);
+      }
+
+      const decoded = this.jwtService.decode(token) as any;
+      if (!decoded || !decoded.sub || typeof decoded.sub !== 'string') {
+        throw new UnauthorizedException('Invalid Apple identity token payload: missing or invalid sub claim');
+      }
+      if (decoded.iss !== 'https://appleid.apple.com') {
         throw new UnauthorizedException('Invalid Apple token issuer');
       }
-      if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-        throw new UnauthorizedException('Apple identity token has expired');
+      if (!decoded.exp || typeof decoded.exp !== 'number' || decoded.exp * 1000 < Date.now()) {
+        throw new UnauthorizedException('Apple identity token has expired or is missing expiration claim');
       }
-      const configuredAppleId = process.env.APPLE_CLIENT_ID?.trim();
+      const configuredAppleId = process.env.APPLE_CLIENT_ID?.trim() || process.env.APPLE_BUNDLE_ID?.trim();
       if (configuredAppleId && decoded.aud && decoded.aud !== configuredAppleId) {
         throw new UnauthorizedException('Apple identity token audience mismatch with configured APPLE_CLIENT_ID');
       }

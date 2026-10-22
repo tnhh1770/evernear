@@ -191,14 +191,28 @@ class DynamicCatalogs {
     'az': azCatalog,
   };
 
+  /// All 60 raw catalogs without fallback merging
+  static const Map<String, Map<String, String>> allRawCatalogs = {
+    ..._catalogs,
+    ...extendedCatalogs,
+  };
+
   /// Retrieve catalog map for language code. Returns null if not registered in Tier 1.
   static Map<String, String>? getCatalog(String code) {
-    return _catalogs[code.toLowerCase()];
+    final lower = code.toLowerCase();
+    final raw = _catalogs[lower];
+    if (raw == null) return null;
+    if (lower == 'vi' || lower == 'en') return raw;
+    return <String, String>{...enCatalog, ...raw};
   }
 
   /// Retrieve any catalog map (Tier 1 or extended Tier 2).
   static Map<String, String>? getAnyCatalog(String code) {
     final lower = code.toLowerCase();
-    return _catalogs[lower] ?? extendedCatalogs[lower];
+    final tier1 = getCatalog(lower);
+    if (tier1 != null) return tier1;
+    final ext = extendedCatalogs[lower];
+    if (ext == null) return null;
+    return <String, String>{...enCatalog, ...ext};
   }
 }

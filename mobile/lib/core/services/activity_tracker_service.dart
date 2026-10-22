@@ -23,6 +23,7 @@ class ActivityTrackerService with WidgetsBindingObserver {
   static const _uuid = Uuid();
 
   StreamSubscription<BatteryState>? _batterySubscription;
+  BatteryState? _lastBatteryState;
   DateTime? _lastDispatchedActivityAt;
   DateTime? _lastChargerActivityAt;
   bool _initialized = false;
@@ -43,9 +44,14 @@ class ActivityTrackerService with WidgetsBindingObserver {
       metadata: {'trigger': 'cold_boot'},
     );
 
-    // Listen to charging changes
+    // Listen to charging changes (only emit when state actually transitions after initial read)
     try {
       _batterySubscription = _battery.onBatteryStateChanged.listen((state) {
+        final previous = _lastBatteryState;
+        _lastBatteryState = state;
+        if (previous == null || previous == state) {
+          return;
+        }
         if (state == BatteryState.charging) {
           recordActivity(
             type: ActivityType.CHARGER_CONNECTED,
@@ -114,6 +120,14 @@ class ActivityTrackerService with WidgetsBindingObserver {
         now.difference(_lastDispatchedActivityAt!).inSeconds < 10) {
       debugPrint('[ActivityTracker] Throttling frequent activity dispatch');
       return false;
+    }
+
+    // Synchronously update debounce timestamps before network I/O
+    // to prevent rapid hardware/event bursts from bypassing debounce checks
+    if (isChargerEvent) {
+      _lastChargerActivityAt = now;
+    } else {
+      _lastDispatchedActivityAt = now;
     }
 
     final eventId = _uuid.v4();

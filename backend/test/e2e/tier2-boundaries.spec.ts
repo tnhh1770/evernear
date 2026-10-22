@@ -954,6 +954,14 @@ describe('Tier 2: Boundary & Corner Cases (>=5 tests / feature)', () => {
       expect(res.body.status).toBe(IncidentStatus.ACKNOWLEDGED);
     });
 
+    it('13.1b: Monitored user cannot acknowledge incident (403 Forbidden)', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/incidents/${testIncId}/acknowledge`)
+        .set('Authorization', `Bearer ${monitored.accessToken}`);
+
+      expect(res.status).toBe(403);
+    });
+
     it('13.2: Re-acknowledging already ACKNOWLEDGED incident is idempotent (200)', async () => {
       const res = await request(app.getHttpServer())
         .post(`/api/v1/incidents/${testIncId}/acknowledge`)

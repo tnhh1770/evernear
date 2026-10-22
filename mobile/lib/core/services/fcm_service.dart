@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../storage/local_storage.dart';
 
 /// Top-level background message handler required by Firebase Messaging.
 /// Must be annotated with `@pragma('vm:entry-point')` to survive tree-shaking in background isolate.
@@ -22,8 +24,8 @@ class FcmService {
   factory FcmService() => _instance;
   FcmService._internal();
 
-  static const String notificationChannelId = 'carely_alerts_channel';
-  static const String notificationChannelName = 'Carely Alerts & Check-Ins';
+  static const String notificationChannelId = 'evernear_alerts_channel';
+  static const String notificationChannelName = 'Evernear Alerts & Check-Ins';
   static const String notificationChannelDesc =
       'Notifications for check-in requests, emergency incidents, and safety reminders.';
 
@@ -69,6 +71,12 @@ class FcmService {
   /// Initialize Firebase Core, FCM listeners, and Local Notifications.
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    if (kIsWeb) {
+      _isFirebaseAvailable = Firebase.apps.isNotEmpty;
+      _isInitialized = true;
+      return;
+    }
 
     try {
       // 1. Initialize Firebase Core
@@ -187,8 +195,27 @@ class FcmService {
 
   void _setupMessageListeners() {
     // Foreground message stream
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       debugPrint('[FcmService] Foreground message received: ${message.messageId}');
+      final type = message.data['type']?.toString();
+      // Calm Tech: In foreground, check-in confirmations are already rendered via in-app SnackBar.
+      // Suppress redundant intrusive system heads-up banner to prevent alarm fatigue.
+      if (type == 'CHECK_IN_CONFIRMED') {
+        debugPrint('[FcmService] Suppressed foreground heads-up for peaceful check-in (handled by in-app UI).');
+        return;
+      }
+
+      // Self-Alert Suppression: Never alert the sender or monitored user about their own incident!
+      final senderUserId = message.data['senderUserId']?.toString();
+      final monitoredUserId = message.data['monitoredUserId']?.toString() ?? message.data['userId']?.toString();
+      final currentUserId = await LocalStorage.getUserId();
+      if (currentUserId != null &&
+          (senderUserId == currentUserId || monitoredUserId == currentUserId) &&
+          type == 'INCIDENT_CREATED') {
+        debugPrint('[FcmService] Suppressed self-alarm notification for the sender/monitored user ($currentUserId).');
+        return;
+      }
+
       showForegroundNotification(message);
     });
 
@@ -207,10 +234,34 @@ class FcmService {
     });
   }
 
+  Future<String?> getToken() async {
+    if (_fcmToken != null && _fcmToken!.isNotEmpty) return _fcmToken;
+    if (_isFirebaseAvailable) {
+      try {
+        _fcmToken = await FirebaseMessaging.instance.getToken();
+        if (_fcmToken != null && _fcmToken!.isNotEmpty) {
+          return _fcmToken;
+        }
+      } catch (e) {
+        debugPrint('[FcmService] Could not fetch FCM token: $e');
+      }
+    }
+    try {
+      final deviceUid = await LocalStorage.getOrCreateDeviceUid();
+      _fcmToken = 'simulated-fcm-$deviceUid';
+      return _fcmToken;
+    } catch (_) {
+      return _fcmToken;
+    }
+  }
+
   Future<void> _retrieveToken() async {
     try {
       _fcmToken = await FirebaseMessaging.instance.getToken();
       debugPrint('[FcmService] Initial FCM Token: $_fcmToken');
+      if (_fcmToken != null && _fcmToken!.isNotEmpty) {
+        onTokenRefreshCallback?.call(_fcmToken!);
+      }
 
       // Listen for token updates
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
@@ -226,8 +277,20 @@ class FcmService {
   /// Display a heads-up foreground notification banner when an alert arrives while app is open.
   Future<void> showForegroundNotification(RemoteMessage message) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!(prefs.getBool('notif_push') ?? true)) {
+        debugPrint('[FcmService] Suppressed foreground notification because notif_push is disabled.');
+        return;
+      }
+      final type = (message.data['type'] ?? message.data['templateName'] ?? '').toString().toUpperCase();
+      if (type.contains('INCIDENT') || type.contains('ALERT')) {
+        if (!(prefs.getBool('notif_emergency') ?? true)) return;
+      } else if (type.contains('CHECK_IN') || type.contains('REMINDER')) {
+        if (!(prefs.getBool('notif_reminders') ?? true)) return;
+      }
+
       final notification = message.notification;
-      final title = notification?.title ?? message.data['title'] ?? 'Carely';
+      final title = notification?.title ?? message.data['title'] ?? 'Evenear';
       final body = notification?.body ?? message.data['body'] ?? '';
 
       final androidDetails = AndroidNotificationDetails(
@@ -265,6 +328,52 @@ class FcmService {
     } catch (e) {
       debugPrint('[FcmService] Error displaying foreground notification: $e');
     }
+  }
+
+  /// Trigger a test notification to verify push/local notification pipeline
+  Future<bool> sendTestNotification({
+    required String title,
+    required String body,
+  }) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    final token = await getToken();
+    if (token != null && token.isNotEmpty) {
+      onTokenRefreshCallback?.call(token);
+    }
+    if (!kIsWeb) {
+      try {
+        final androidDetails = AndroidNotificationDetails(
+          notificationChannelId,
+          notificationChannelName,
+          channelDescription: notificationChannelDesc,
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+          styleInformation: BigTextStyleInformation(body),
+        );
+        const iosDetails = DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        );
+        await _localNotifications.show(
+          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          title: title,
+          body: body,
+          notificationDetails: NotificationDetails(
+            android: androidDetails,
+            iOS: iosDetails,
+          ),
+          payload: jsonEncode({'type': 'TEST_NOTIFICATION'}),
+        );
+      } catch (e) {
+        debugPrint('[FcmService] Local test notification display note: $e');
+      }
+    }
+    return true;
   }
 
   /// Process action routing for notifications based on NOTIFICATION.md catalog

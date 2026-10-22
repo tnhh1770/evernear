@@ -344,12 +344,14 @@ export class ActivityService {
 
     if (this.realtimeService && meaningfulItems.length > 0) {
       const latest = meaningfulItems[meaningfulItems.length - 1];
-      this.realtimeService.emitToMonitorsOf(userId, {
-        type: RealtimeEventType.ACTIVITY_RECORDED,
-        userId,
-        activityType: latest.type,
-        occurredAt: latest.occurredAt.toISOString(),
-      });
+      this.realtimeService
+        .emitToMonitorsOf(userId, {
+          type: RealtimeEventType.ACTIVITY_RECORDED,
+          userId,
+          activityType: latest.type,
+          occurredAt: latest.occurredAt.toISOString(),
+        })
+        .catch(() => {});
     }
   }
 
@@ -419,12 +421,14 @@ export class ActivityService {
     }
 
     if (this.realtimeService) {
-      this.realtimeService.emitToMonitorsOf(userId, {
-        type: RealtimeEventType.ACTIVITY_RECORDED,
-        userId,
-        activityType,
-        occurredAt: occurredAt.toISOString(),
-      });
+      this.realtimeService
+        .emitToMonitorsOf(userId, {
+          type: RealtimeEventType.ACTIVITY_RECORDED,
+          userId,
+          activityType,
+          occurredAt: occurredAt.toISOString(),
+        })
+        .catch(() => {});
     }
   }
 

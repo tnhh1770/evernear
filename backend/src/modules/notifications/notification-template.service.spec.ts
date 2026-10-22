@@ -9,7 +9,7 @@ describe('NotificationTemplateService (i18n & Safe Fallback)', () => {
 
   it('1. should render default Vietnamese templates when locale is omitted (backwards compatibility)', () => {
     const res = service.render('CHECK_IN_PROMPT');
-    expect(res.title).toBe('Carely — Bạn vẫn ổn chứ?');
+    expect(res.title).toBe('Evernear — Bạn vẫn ổn chứ?');
     expect(res.body).toContain('Hệ thống chưa nhận thấy hoạt động mới');
   });
 
@@ -27,7 +27,7 @@ describe('NotificationTemplateService (i18n & Safe Fallback)', () => {
 
     const enRes = service.render('MONITOR_INACTIVITY_WARNING', { name: 'Uncle Bob' }, 'en');
     expect(enRes.body).toContain('Uncle Bob');
-    expect(enRes.title).toBe('Carely — Care Notice');
+    expect(enRes.title).toBe('Evernear — Care Notice');
 
     const jaRes = service.render('MONITOR_INACTIVITY_WARNING', { name: '田中' }, 'ja');
     expect(jaRes.body).toContain('田中 様');
@@ -46,22 +46,22 @@ describe('NotificationTemplateService (i18n & Safe Fallback)', () => {
 
   it('5. should safely normalize regional locales (e.g. en-US, pt-BR, vi-VN)', () => {
     const resUS = service.render('CHECK_IN_PROMPT', {}, 'en-US');
-    expect(resUS.title).toBe('Carely — Are you doing okay?');
+    expect(resUS.title).toBe('Evernear — Are you doing okay?');
 
     const resBR = service.render('CHECK_IN_PROMPT', {}, 'pt-BR');
-    expect(resBR.title).toBe('Carely — Está tudo bem?');
+    expect(resBR.title).toBe('Evernear — Está tudo bem?');
   });
 
   it('6. should fall back to English then Vietnamese for unsupported language codes', () => {
     // Unsupported code 'xx'
     const res = service.render('CHECK_IN_PROMPT', {}, 'xx');
-    expect(res.title).toBe('Carely — Are you doing okay?');
+    expect(res.title).toBe('Evernear — Are you doing okay?');
   });
 
   it('7. should fall back to default template for unknown template names', () => {
     const res = service.render('TEST_BACKOFF', {}, 'vi');
-    expect(res.title).toBe('Carely');
-    expect(res.body).toBe('Thông báo mới từ hệ thống chăm sóc Carely.');
+    expect(res.title).toBe('Evernear');
+    expect(res.body).toBe('Thông báo mới từ hệ thống chăm sóc Evernear.');
   });
 
   it('8. should escape all 14 ECMAScript regex metacharacters and safely handle parameter keys with metacharacters without throwing SyntaxError', () => {
@@ -82,7 +82,7 @@ describe('NotificationTemplateService (i18n & Safe Fallback)', () => {
 
     expect(() => {
       const res = service.render('CHECK_IN_PROMPT', metacharKeys, 'vi');
-      expect(res.title).toBe('Carely — Bạn vẫn ổn chứ?');
+      expect(res.title).toBe('Evernear — Bạn vẫn ổn chứ?');
       expect(res.body).toBeDefined();
     }).not.toThrow();
   });

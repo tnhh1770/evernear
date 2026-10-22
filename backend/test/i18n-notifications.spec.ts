@@ -175,11 +175,11 @@ describe('i18n Notifications & Backend User Language (Ext-M1)', () => {
       });
 
       expect(deliveries).toHaveLength(1);
-      expect(deliveries[0].payload.title).toBe('Carely — Are you doing okay?');
+      expect(deliveries[0].payload.title).toBe('Evernear — Are you doing okay?');
       expect(deliveries[0].payload.body).toContain('Tap to confirm you are okay');
       expect(fcmChannel.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Carely — Are you doing okay?',
+          title: 'Evernear — Are you doing okay?',
         }),
       );
     });
@@ -200,7 +200,7 @@ describe('i18n Notifications & Backend User Language (Ext-M1)', () => {
       });
 
       expect(deliveries).toHaveLength(1);
-      expect(deliveries[0].payload.title).toBe('Carely — 大丈夫ですか？');
+      expect(deliveries[0].payload.title).toBe('Evernear — 大丈夫ですか？');
       expect(deliveries[0].payload.body).toContain('タップして無事を確認してください');
     });
 
@@ -221,7 +221,7 @@ describe('i18n Notifications & Backend User Language (Ext-M1)', () => {
       });
 
       expect(deliveries).toHaveLength(1);
-      expect(deliveries[0].payload.title).toBe('Carely — Geht es Ihnen gut?');
+      expect(deliveries[0].payload.title).toBe('Evernear — Geht es Ihnen gut?');
       expect(deliveries[0].payload.body).toContain('Tippen Sie hier');
     });
 
@@ -240,7 +240,7 @@ describe('i18n Notifications & Backend User Language (Ext-M1)', () => {
       });
 
       expect(deliveries).toHaveLength(1);
-      expect(deliveries[0].payload.title).toBe('Carely — Aviso de atención');
+      expect(deliveries[0].payload.title).toBe('Evernear — Aviso de atención');
       expect(deliveries[0].payload.body).toContain('No se ha registrado actividad o respuesta');
     });
 
@@ -260,7 +260,7 @@ describe('i18n Notifications & Backend User Language (Ext-M1)', () => {
       });
 
       expect(deliveries).toHaveLength(1);
-      expect(deliveries[0].payload.title).toBe('Carely — Are you doing okay?');
+      expect(deliveries[0].payload.title).toBe('Evernear — Are you doing okay?');
     });
 
     it('9. should cascade to localized SMS using recipient user record from DB when explicit language override is provided and FCM has no active devices', async () => {
@@ -285,7 +285,7 @@ describe('i18n Notifications & Backend User Language (Ext-M1)', () => {
       expect(deliveries[1].channel).toBe(NotificationChannelType.SMS);
       expect(deliveries[1].status).toBe(NotificationDeliveryStatus.SENT);
       expect(deliveries[1].recipientTarget).toBe('+84912345678');
-      expect(deliveries[1].payload.title).toBe('Carely — Geht es Ihnen gut?');
+      expect(deliveries[1].payload.title).toBe('Evernear — Geht es Ihnen gut?');
       expect(deliveries[1].payload.body).toContain('Tippen Sie hier');
       expect(smsChannel.send).toHaveBeenCalled();
     });

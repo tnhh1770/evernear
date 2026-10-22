@@ -530,13 +530,13 @@ void main() {
       expect(AppStrings.checkInSuccess,
           'Đã gửi xác nhận bình an thành công.');
       expect(AppStrings.checkInOfflineSuccess, contains('bộ nhớ máy'));
-      expect(AppStrings.stateActive, 'Tình trạng ổn định');
-      expect(AppStrings.stateCheckInRequired, 'Cần kiểm tra an tâm');
+      expect(AppStrings.stateActive, 'Bạn đang được bảo vệ');
+      expect(AppStrings.stateCheckInRequired, 'Cần kiểm tra');
       expect(AppStrings.stateGracePeriod, 'Chờ phản hồi');
-      expect(AppStrings.stateAlertTriggered, 'Đã liên hệ người thân');
-      expect(AppStrings.stateAcknowledged, 'Người thân đã tiếp nhận');
-      expect(AppStrings.stateResolved, 'Đã hoàn tất hỗ trợ');
-      expect(AppStrings.statePaused, 'Đang tạm dừng giám sát');
+      expect(AppStrings.stateAlertTriggered, 'Không nhận được xác nhận');
+      expect(AppStrings.stateAcknowledged, 'Đã liên hệ người thân');
+      expect(AppStrings.stateResolved, 'Đã khôi phục trạng thái');
+      expect(AppStrings.statePaused, 'Chế độ tạm dừng');
       expect(AppStrings.calmEmptyIncidentsTitle, 'Mọi thứ đều bình an');
       expect(AppStrings.retryButton, 'Thử lại');
     });

@@ -268,8 +268,8 @@ void main() {
       final double scrolledOffset = initialScrollable.position.pixels;
       expect(scrolledOffset, greaterThan(150.0), reason: 'Scroll offset should be advanced');
 
-      // Switch to Tab 1: Gia đình (MonitorView)
-      await tester.tap(find.text('Gia đình'));
+      // Switch to Tab 1: Theo dõi (MonitorView)
+      await tester.tap(find.text('Theo dõi'));
       await tester.pump();
 
       final IndexedStack indexedStack1 = tester.widget(find.byType(IndexedStack));
@@ -311,7 +311,7 @@ void main() {
 
       // Rapid tab switching stress: 16 iterations
       for (int i = 0; i < 4; i++) {
-        await tester.tap(find.text('Gia đình'));
+        await tester.tap(find.text('Theo dõi'));
         await tester.pump();
         await tester.tap(tab2Finder);
         await tester.pump();

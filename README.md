@@ -1,4 +1,4 @@
-# Carely — Inactivity Monitor & Dead Man's Switch System
+# Evenear — Inactivity Monitor & Dead Man's Switch System
 
 > **Đồng hành & Bảo vệ bình an cho người thân**  
 > An authoritative, privacy-first, battery-efficient Inactivity Monitor & Dead Man's Switch system built with **NestJS 12**, **PostgreSQL 16**, **Redis 7**, and **Flutter 3.47 (Dart 3.13)**.
@@ -7,12 +7,12 @@
 
 ## 1. Overview & Core Philosophy
 
-Carely is designed for independent solo dwellers, elderly parents, and high-risk workers who want peace of mind without compromising their privacy.
+Evenear is designed for independent solo dwellers, elderly parents, and high-risk workers who want peace of mind without compromising their privacy.
 
 ### The 3 Core Axioms
 
 1. **"Server is Authoritative, Mobile is Opportunistic"**  
-   Mobile operating systems (Android Doze, iOS Background Execution limits) can terminate background tasks or delay sync arbitrarily. Therefore, the **Carely Backend Server** is the sole source of truth and authoritative clock. If a mobile device stops communicating, the server deterministically transitions states and escalates alerts regardless of whether the mobile client is awake.
+   Mobile operating systems (Android Doze, iOS Background Execution limits) can terminate background tasks or delay sync arbitrarily. Therefore, the **Evenear Backend Server** is the sole source of truth and authoritative clock. If a mobile device stops communicating, the server deterministically transitions states and escalates alerts regardless of whether the mobile client is awake.
 
 2. **Strict Separation of Heartbeat, Activity, and Check-in**
    * **Heartbeat (Weight = 0.0)**: Device reachability ping. Informs the server that the OS has network access and reports battery level. **It NEVER resets `lastMeaningfulActivityAt` and CANNOT keep a user in the `ACTIVE` state.**
@@ -30,14 +30,14 @@ Carely is designed for independent solo dwellers, elderly parents, and high-risk
 
 ```
                      +---------------------------------------+
-                     |            Carely Clients             |
+                     |            Evenear Clients             |
                      |  (Flutter Android / iOS / Web Client) |
                      +-------------------+-------------------+
                                          |
                                          | REST / JWT / Idempotent X-Event-ID
                                          v
                      +---------------------------------------+
-                     |         Carely Backend (NestJS)       |
+                     |         Evenear Backend (NestJS)       |
                      |  - Auth & Device Management           |
                      |  - Activity & Heartbeat Ingestion     |
                      |  - Check-in & Recovery Engine         |
@@ -60,7 +60,7 @@ Carely is designed for independent solo dwellers, elderly parents, and high-risk
 ## 3. Directory Structure
 
 ```
-Carely/
+Evenear/
 ├── backend/                  # NestJS 12 Enterprise Backend
 │   ├── src/
 │   │   ├── common/           # Enums, Redis distributed locking, decorators, guards

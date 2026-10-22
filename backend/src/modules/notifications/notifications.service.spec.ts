@@ -258,7 +258,7 @@ describe('NotificationsService (Unit Tests)', () => {
     expect(deliveries[1].channel).toBe(NotificationChannelType.SMS);
     expect(deliveries[1].status).toBe(NotificationDeliveryStatus.SENT);
     expect(deliveries[1].recipientTarget).toBe('+84912345678');
-    expect(deliveries[1].payload.title).toBe('Carely — Are you doing okay?');
+    expect(deliveries[1].payload.title).toBe('Evernear — Are you doing okay?');
     expect(smsChannel.send).toHaveBeenCalled();
   });
 
@@ -287,7 +287,7 @@ describe('NotificationsService (Unit Tests)', () => {
     expect(deliveries[1].channel).toBe(NotificationChannelType.SMS);
     expect(deliveries[1].status).toBe(NotificationDeliveryStatus.SENT);
     expect(deliveries[1].recipientTarget).toBe('+84912345678');
-    expect(deliveries[1].payload.title).toBe('Carely — ご確認のお願い');
+    expect(deliveries[1].payload.title).toBe('Evernear — ご確認のお願い');
     expect(smsChannel.send).toHaveBeenCalled();
   });
 
@@ -314,7 +314,42 @@ describe('NotificationsService (Unit Tests)', () => {
     expect(deliveries[1].channel).toBe(NotificationChannelType.TELEGRAM);
     expect(deliveries[1].status).toBe(NotificationDeliveryStatus.SENT);
     expect(deliveries[1].recipientTarget).toBe('tg-chat-reg-3');
-    expect(deliveries[1].payload.title).toBe('Carely — Tout va bien ?');
+    expect(deliveries[1].payload.title).toBe('Evernear — Tout va bien ?');
     expect(telegramChannel.send).toHaveBeenCalled();
+  });
+
+  it('12. should mark delivery as EXHAUSTED when retry attempt count reaches maxAttempts', async () => {
+    const deadDelivery = {
+      id: 'del-exhausted-1',
+      recipientUserId: 'user-1',
+      recipientTarget: 'token-valid',
+      channel: NotificationChannelType.FCM,
+      status: NotificationDeliveryStatus.FAILED,
+      attemptCount: 2,
+      maxAttempts: 3,
+      failedAt: new Date(Date.now() - 120000),
+      payload: { title: 'T', body: 'B' },
+    };
+
+    const mockQb: any = {
+      where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      take: vi.fn().mockReturnThis(),
+      getMany: vi.fn().mockResolvedValue([deadDelivery]),
+    };
+    deliveryRepo.createQueryBuilder = vi.fn().mockReturnValue(mockQb);
+    fcmChannel.send.mockResolvedValue({ success: false, error: 'Token unregistered' });
+
+    const retriedCount = await service.processRetries(10);
+
+    expect(retriedCount).toBe(1);
+    expect(deadDelivery.attemptCount).toBe(3);
+    expect(deadDelivery.status).toBe(NotificationDeliveryStatus.EXHAUSTED);
+    expect(deliveryRepo.save).toHaveBeenCalledWith(deadDelivery);
+    expect(mockQb.where).toHaveBeenCalledWith('delivery.status = :status', {
+      status: NotificationDeliveryStatus.FAILED,
+    });
+    expect(mockQb.andWhere).toHaveBeenCalledWith('delivery.attempt_count < delivery.max_attempts');
   });
 });

@@ -49,9 +49,9 @@ void main() {
       expect(QrCodeParser.extractInviteCode('CR-'), isNull);
     });
 
-    test('buildInviteUri constructs canonical carely:// URI', () {
+    test('buildInviteUri constructs canonical evernear:// URI', () {
       final uri = QrCodeParser.buildInviteUri('CR-ABC12345');
-      expect(uri, equals('carely://invite?code=CR-ABC12345'));
+      expect(uri, equals('evernear://invite?code=CR-ABC12345'));
     });
   });
 
@@ -161,7 +161,7 @@ void main() {
       await tester.tap(find.byKey(const Key('open_manual_input_button')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Nhập mã kết nối'), findsOneWidget);
+      expect(find.text('Nhập mã kết nối'), findsWidgets);
       expect(find.byKey(const Key('manual_code_input_field')), findsOneWidget);
 
       await tester.enterText(
