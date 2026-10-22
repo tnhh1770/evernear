@@ -769,18 +769,21 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                                           : AppColors.divider),
                                 ),
                               ),
-                              child: Column(
+                                child: Column(
                                 children: [
-                                  Text(
-                                    window.dayNameShort,
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : (isEnabled
-                                              ? AppColors.primary
-                                              : AppColors.textMuted),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      window.dayNameShort,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : (isEnabled
+                                                ? AppColors.primary
+                                                : AppColors.textMuted),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 3),
@@ -997,7 +1000,11 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _applyToAllDays,
                       icon: const Icon(Icons.copy_rounded, size: 15),
-                      label: Text(context.tr('apply_to_all_days')),
+                      label: Text(
+                        context.tr('apply_to_all_days'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primaryLight),
@@ -1147,6 +1154,7 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
+                        flex: 3,
                         child: Text(
                           context.tr('monitoring_inactivity_threshold_title'),
                           style: const TextStyle(
@@ -1156,21 +1164,26 @@ class _MonitoringSettingsScreenState extends State<MonitoringSettingsScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _formatThresholdPreview(_inactivityThreshold),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                      Flexible(
+                        flex: 2,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _formatThresholdPreview(_inactivityThreshold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
                       ),

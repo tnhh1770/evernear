@@ -183,6 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildOnboarding1(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final isCompact = screenHeight < 680;
+    final isUltraShort = screenHeight < 420;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -198,7 +199,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  EvenearHeartLogo(size: isCompact ? 54 : 66),
+                  EvenearHeartLogo(size: isUltraShort ? 42 : (isCompact ? 54 : 66)),
                   SizedBox(height: isCompact ? 10 : 18),
                   Text(
                     context.tr('app_name', fallback: 'Evenear'),
@@ -224,18 +225,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           SizedBox(height: isCompact ? 8 : 12),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: SizedBox(
-              width: 235,
-              child: Text(
-                context.tr('onboarding_slide1_title'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: isCompact ? 14.5 : 16,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF4A6B61),
-                  height: 1.45,
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: Text(
+              context.tr('onboarding_slide1_title'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: isCompact ? 14.5 : 16,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF4A6B61),
+                height: 1.45,
               ),
             ),
           ),
@@ -243,7 +241,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: OnboardingElderlyCoupleIllustration(
-              height: isCompact ? 165 : 245,
+              height: isUltraShort ? 110 : (isCompact ? 165 : 245),
             ),
           ),
           const Spacer(),
@@ -267,14 +265,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildOnboarding2(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final isCompact = screenHeight < 680;
+    final isUltraShort = screenHeight < 420;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 8),
       child: Column(
         children: [
           SizedBox(height: isCompact ? 6 : 20),
-          SizedBox(
-            width: 240,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               context.tr('onboarding_slide2_title', fallback: 'Luôn bên cạnh khi bạn cần'),
               textAlign: TextAlign.center,
@@ -303,7 +302,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           const Spacer(),
-          OnboardingPersonPhoneIllustration(height: isCompact ? 160 : 230),
+          OnboardingPersonPhoneIllustration(
+            height: isUltraShort ? 110 : (isCompact ? 160 : 230),
+          ),
           const Spacer(),
           _buildPrimaryButton(
             label: context.tr('onboarding_continue', fallback: 'Tiếp tục'),

@@ -209,7 +209,12 @@ class _LoginScreenState extends State<LoginScreen> {
             minimum: const EdgeInsets.only(bottom: 20),
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(26.0, 16.0, 26.0, 44.0),
+                padding: EdgeInsets.fromLTRB(
+                  MediaQuery.sizeOf(context).width < 360 ? 16.0 : 26.0,
+                  16.0,
+                  MediaQuery.sizeOf(context).width < 360 ? 16.0 : 26.0,
+                  44.0,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Form(
@@ -222,40 +227,47 @@ class _LoginScreenState extends State<LoginScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            InkWell(
-                              key: const Key('login_back_to_landing_btn'),
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: () => WebLandingLauncher.openLanding(context),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 4,
-                                  horizontal: 4,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const EvenearHeartLogo(size: 22),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      context.tr('app_name', fallback: 'Evenear'),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF184A3E),
+                            Flexible(
+                              child: InkWell(
+                                key: const Key('login_back_to_landing_btn'),
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () => WebLandingLauncher.openLanding(context),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                    horizontal: 4,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const EvenearHeartLogo(size: 22),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          context.tr('app_name', fallback: 'Evenear'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF184A3E),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      WebLandingLauncher.isWeb
-                                          ? Icons.home_outlined
-                                          : Icons.open_in_new_rounded,
-                                      size: 14,
-                                      color: const Color(0xFF4A6B61),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        WebLandingLauncher.isWeb
+                                            ? Icons.home_outlined
+                                            : Icons.open_in_new_rounded,
+                                        size: 14,
+                                        color: const Color(0xFF4A6B61),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             const LanguageSelector(
                               key: Key('preauth_language_selector'),
                               dropdownKey: Key('login_language_dropdown'),

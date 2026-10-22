@@ -423,50 +423,64 @@ void showActiveAccountSheet(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.shield_outlined,
-                              size: 16,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              sheetCtx.tr(
-                                'account_guardians_count',
-                                args: {'count': '$guardiansCount'},
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.shield_outlined,
+                                size: 16,
+                                color: AppColors.primary,
                               ),
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  sheetCtx.tr(
+                                    'account_guardians_count',
+                                    args: {'count': '$guardiansCount'},
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Container(width: 1, height: 16, color: AppColors.divider),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.group_outlined,
-                              size: 16,
-                              color: AppColors.secondary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              sheetCtx.tr(
-                                'account_monitoring_count',
-                                args: {'count': '$monitoringCount'},
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.group_outlined,
+                                size: 16,
+                                color: AppColors.secondary,
                               ),
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  sheetCtx.tr(
+                                    'account_monitoring_count',
+                                    args: {'count': '$monitoringCount'},
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),

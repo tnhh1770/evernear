@@ -297,51 +297,60 @@ class _LandingScreenState extends State<LandingScreen> {
             ),
             child: Row(
               children: [
-                InkWell(
-                  onTap: () {
-                    if (widget.page != SitePageType.landing) {
-                      Navigator.of(context).pushReplacementNamed('/');
-                    } else if (_scrollController.hasClients) {
-                      _scrollController.animateTo(
-                        0,
-                        duration: const Duration(milliseconds: 350),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(999),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: _terraBorder, width: 2),
-                        ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/images/evernear_logo.png',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              color: _terra,
-                              child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isCompact ? (width * 0.44).clamp(100.0, 190.0) : 220.0,
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: InkWell(
+                      onTap: () {
+                        if (widget.page != SitePageType.landing) {
+                          Navigator.of(context).pushReplacementNamed('/');
+                        } else if (_scrollController.hasClients) {
+                          _scrollController.animateTo(
+                            0,
+                            duration: const Duration(milliseconds: 350),
+                            curve: Curves.easeOut,
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _terraBorder, width: 2),
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/evernear_logo.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(
+                                  color: _terra,
+                                  child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 9),
+                          const Text(
+                            'Evernear',
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              color: _espresso,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 9),
-                      const Text(
-                        'Evernear',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: _espresso,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 if (!isCompact)

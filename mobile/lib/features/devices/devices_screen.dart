@@ -342,27 +342,34 @@ class _DevicesScreenState extends State<DevicesScreen> {
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(color: const Color(0xFFE8ECE8)),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.sync_rounded,
-                              color: Color(0xFF28594B),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              context.tr(
-                                'devices_sync_current_button',
-                                fallback: 'Đồng bộ thiết bị hiện tại',
-                              ),
-                              style: const TextStyle(
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w600,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.sync_rounded,
                                 color: Color(0xFF28594B),
+                                size: 20,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  context.tr(
+                                    'devices_sync_current_button',
+                                    fallback: 'Đồng bộ thiết bị hiện tại',
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF28594B),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

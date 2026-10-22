@@ -337,7 +337,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       child: GestureDetector(
         onTap: () => setState(() => _currentStep = index),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 6),
           decoration: BoxDecoration(
             color: selected ? AppColors.primary : const Color(0xFFE6E8E5),
             borderRadius: BorderRadius.circular(20),
@@ -345,6 +345,9 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
           alignment: Alignment.center,
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,

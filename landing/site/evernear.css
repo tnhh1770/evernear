@@ -1263,8 +1263,34 @@ section.sand-band {
 }
 
 @media (max-width: 640px) {
-  .hero-copy-card {
-    padding: 28px 22px;
+  html,
+  body {
+    overflow-x: hidden;
+  }
+  .hero-copy-card,
+  .hero-stage-card {
+    padding: 24px 16px;
+  }
+  .stage-phones {
+    flex-wrap: wrap;
+    gap: 12px;
+    max-width: 100%;
+  }
+  .device-frame {
+    width: min(210px, 68%);
+  }
+  .device-frame.companion {
+    width: min(172px, 56%);
+    margin-left: -32px;
+  }
+  .lang-pop-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .lang-search {
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 140px;
   }
   .hero-metrics-inline,
   .role-body,
@@ -1282,3 +1308,21 @@ section.sand-band {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+@media (max-width: 380px) {
+  .container {
+    padding: 0 12px;
+  }
+  .nav-cta .btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .lang-trigger {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .lang-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -326,7 +326,7 @@ class _RelativeDetailScreenState extends State<RelativeDetailScreen> {
         behavior: HitTestBehavior.opaque,
         onTap: () => setState(() => _selectedSubTab = index),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
@@ -338,6 +338,9 @@ class _RelativeDetailScreenState extends State<RelativeDetailScreen> {
           alignment: Alignment.center,
           child: useRichText
               ? RichText(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   text: TextSpan(
                     text: label,
                     style: TextStyle(
@@ -351,6 +354,8 @@ class _RelativeDetailScreenState extends State<RelativeDetailScreen> {
                 )
               : Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -846,6 +851,8 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
                   hasPhone
                       ? '${context.tr('incident_call_now_btn', fallback: 'Gọi ngay')} ($displayPhone)'
                       : context.tr('incident_call_now_btn', fallback: 'Gọi ngay'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -875,6 +882,8 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
                   _pingSent
                       ? 'Đã gửi nhắc xác nhận an toàn'
                       : 'Gửi tín hiệu nhắc xác nhận an toàn',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                 ),
                 style: OutlinedButton.styleFrom(

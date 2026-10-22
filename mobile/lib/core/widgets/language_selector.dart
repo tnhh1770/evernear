@@ -48,7 +48,7 @@ class LanguageSelector extends StatelessWidget {
     return Align(
       alignment: alignment,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
@@ -59,11 +59,11 @@ class LanguageSelector extends StatelessWidget {
             key: dropdownKey ?? const Key('preauth_language_selector'),
             value: currentCode,
             icon: const Padding(
-              padding: EdgeInsets.only(left: 4),
+              padding: EdgeInsets.only(left: 2),
               child: Icon(
                 Icons.arrow_drop_down,
                 color: AppColors.textSecondary,
-                size: 20,
+                size: 18,
               ),
             ),
             isDense: isDense,

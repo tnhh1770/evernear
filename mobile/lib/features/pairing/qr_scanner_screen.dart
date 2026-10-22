@@ -443,33 +443,54 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   }
 
   Widget _buildViewfinderOverlay(BuildContext context) {
-    const double cutOutSize = 240.0;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: cutOutSize,
-            height: cutOutSize,
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primary, width: 3),
-              borderRadius: BorderRadius.circular(24),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxDim = constraints.maxWidth < constraints.maxHeight
+            ? constraints.maxWidth
+            : constraints.maxHeight;
+        final double cutOutSize = (maxDim * 0.58).clamp(110.0, 240.0);
+        return Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: cutOutSize,
+                    height: cutOutSize,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.primary, width: 3),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    constraints: BoxConstraints(
+                      maxWidth: (constraints.maxWidth - 32).clamp(180.0, 340.0),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      context.tr('qr_point_camera'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.65),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              context.tr('qr_point_camera'),
-              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
