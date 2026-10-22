@@ -1,6 +1,6 @@
 /// Parsing utility extracting pairing invite codes from QR payloads.
 /// Supports deep link URI scheme evernear://invite?code=CR-XXXXXX,
-/// web URLs https://evernear.app/invite?code=CR-XXXXXX, and raw codes CR-XXXXXX.
+/// web URLs https://evernear.erai.vn/invite?code=CR-XXXXXX (or https://evernear.app/invite?code=CR-XXXXXX), and raw codes CR-XXXXXX.
 class QrCodeParser {
   static String? extractInviteCode(String? raw) {
     if (raw == null) return null;
@@ -19,7 +19,7 @@ class QrCodeParser {
       }
     } catch (_) {}
 
-    // 2. Web URL: https://evernear.app/invite?code=... or https://carely.app/invite?code=...
+    // 2. Web URL: https://evernear.erai.vn/invite?code=... or https://evernear.app/invite?code=... or https://carely.app/invite?code=...
     try {
       final uri = Uri.tryParse(trimmed);
       if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {

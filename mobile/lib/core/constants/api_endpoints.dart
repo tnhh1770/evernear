@@ -1,15 +1,15 @@
 class ApiEndpoints {
-  // Configurable base URL. Default to LAN IP for physical device / Wi-Fi testing
+  // Configurable base URL. Default to production domain https://evernear.erai.vn/api/v1
   static const String _defaultUrl = String.fromEnvironment(
     'BASE_URL',
-    defaultValue: 'http://192.168.110.7:3001/api/v1',
+    defaultValue: 'https://evernear.erai.vn/api/v1',
   );
   static String baseUrl = _defaultUrl;
 
   // Configurable Web Landing URL for external browser redirects from the mobile app
   static const String _defaultWebLandingUrl = String.fromEnvironment(
     'WEB_LANDING_URL',
-    defaultValue: 'http://192.168.110.7:44603',
+    defaultValue: 'https://evernear.erai.vn',
   );
   static String webLandingUrl = _defaultWebLandingUrl;
 

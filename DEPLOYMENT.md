@@ -1,28 +1,42 @@
-# Carely Production Deployment & Operations Guide
+# Evernear (`evernear.erai.vn`) Production Deployment & Operations Guide
 
-## 1. Production Architecture & Topology
+## 1. Domain & Routing Topology (`evernear.erai.vn`)
 
 ```
-                              [ Load Balancer (Nginx / ALB) ]
+                       [ https://evernear.erai.vn (Nginx / SSL) ]
                                             |
-                         +------------------+------------------+
-                         |                                     |
-                [ Carely API Instance 1 ]             [ Carely API Instance 2 ]
-                (NestJS Cluster Mode)                 (NestJS Cluster Mode)
-                         |                                     |
-                         +------------------+------------------+
-                                            |
-                         +------------------+------------------+
-                         |                                     |
-               [ PostgreSQL 16 Primary ]              [ Redis 7 Cluster ]
-               (Port 5432 / WAL Archiving)            (Redlock & Cache)
+        +-----------------------+-----------+-----------+-----------------------+
+        |                       |                       |                       |
+   [ /, /privacy,          [ /login, /register,    [ /api/v1/* ]            [ /ws ]
+     /terms, /delete-account ] /dashboard, /invite ]   |                       |
+        |                       |                       v                       v
+  Static Landing          Flutter Web App      [ NestJS Backend :3000 (REST + WS) ]
+ (/var/www/evernear/landing) (/var/www/evernear/web)    |
+                                            +-----------+-----------+
+                                            |                       |
+                                  [ PostgreSQL 16 ]          [ Redis 7 ]
 ```
+
+### Quick Deploy to `evernear.erai.vn`
+1. Point DNS `A` / `CNAME` record for `evernear.erai.vn` to your VPS IP (or Cloudflare Tunnel).
+2. Issue SSL certificate on VPS (if not using Cloudflare Tunnel):
+   ```bash
+   sudo certbot certonly --webroot -w /var/www/certbot -d evernear.erai.vn
+   ```
+3. Run the automated deployment script:
+   ```bash
+   ./scripts/deploy_evernear.sh
+   ```
+   - Builds Flutter Web with `--dart-define=BASE_URL=https://evernear.erai.vn/api/v1` and `--dart-define=WEB_LANDING_URL=https://evernear.erai.vn`
+   - Syncs `landing/` -> `/var/www/evernear/landing` and `mobile/build/web/` -> `/var/www/evernear/web`
+   - Launches `docker-compose.prod.yml` (`postgres`, `redis`, `backend` on `127.0.0.1:3000`)
+   - Installs `nginx/evernear.erai.vn.conf` and reloads Nginx.
 
 ---
 
 ## 2. Environment Variables Specification
 
-Create `.env` based on the production checklist:
+Create `backend/.env` based on the production checklist:
 
 ```bash
 # Application Environment
