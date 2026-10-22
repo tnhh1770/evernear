@@ -7,11 +7,11 @@
                                             |
         +-----------------------+-----------+-----------+-----------------------+
         |                       |                       |                       |
-   [ /, /privacy,          [ /login, /register,    [ /api/v1/* ]            [ /ws ]
-     /terms, /delete-account ] /dashboard, /invite ]   |                       |
+   [ /landing, /privacy,   [ /, /login, /register, [ /api/v1/* ]      [ /ws & /realtime/* ]
+     /terms, /delete-account ] /dashboard, /invite ]    |                       |
         |                       |                       v                       v
-  Static Landing          Flutter Web App      [ NestJS Backend :3000 (REST + WS) ]
- (/var/www/evernear/landing) (/var/www/evernear/web)    |
+  Static Landing          Flutter Web App      [ NestJS Backend :3000 (REST + WS + SSE) ]
+ (/opt/evernear/landing) (/opt/evernear/flutter)        |
                                             +-----------+-----------+
                                             |                       |
                                   [ PostgreSQL 16 ]          [ Redis 7 ]
@@ -28,7 +28,7 @@
    ./scripts/deploy_evernear.sh
    ```
    - Builds Flutter Web with `--dart-define=BASE_URL=https://evernear.erai.vn/api/v1` and `--dart-define=WEB_LANDING_URL=https://evernear.erai.vn`
-   - Syncs `landing/` -> `/var/www/evernear/landing` and `mobile/build/web/` -> `/var/www/evernear/web`
+   - Syncs `mobile/build/web/` -> `/opt/evernear/flutter` and `landing/` -> `/opt/evernear/landing`
    - Launches `docker-compose.prod.yml` (`postgres`, `redis`, `backend` on `127.0.0.1:3000`)
    - Installs `nginx/evernear.erai.vn.conf` and reloads Nginx.
 
