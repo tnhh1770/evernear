@@ -13,6 +13,7 @@ import '../../core/network/realtime_service.dart';
 import '../../core/services/activity_tracker_service.dart';
 import '../../core/services/fcm_service.dart';
 import '../../core/services/heartbeat_service.dart';
+import '../../core/services/sync_queue_service.dart';
 import '../../core/storage/local_storage.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -565,6 +566,9 @@ class AuthProvider with ChangeNotifier {
     RealtimeService().disconnect();
     HeartbeatService().stop();
     ActivityTrackerService().dispose();
+    try {
+      await SyncQueueService().clearQueue();
+    } catch (_) {}
     await LocalStorage.clearAuth();
     _currentUser = null;
     _isAuthenticated = false;

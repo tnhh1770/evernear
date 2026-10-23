@@ -1,0 +1,5 @@
+"CFBundleDisplayName" = "Evernear Care";
+"CFBundleName" = "Evernear Care";
+"NSLocationWhenInUseUsageDescription" = "Evernear Care chỉ ghi nhận vị trí một lần khi bạn bấm xác nhận 'Tôi vẫn ổn' hoặc khi xảy ra cảnh báo an toàn để chia sẻ với người thân được ủy quyền.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Evernear Care chỉ ghi nhận vị trí một lần khi bạn bấm xác nhận 'Tôi vẫn ổn' hoặc khi xảy ra cảnh báo an toàn để chia sẻ với người thân được ủy quyền. Không bao giờ theo dõi GPS liên tục dưới nền.";
+"NSCameraUsageDescription" = "Evernear Care chỉ sử dụng camera để quét mã QR kết nối gia đình với người thân. Ứng dụng không chụp ảnh hoặc quay video.";

@@ -103,7 +103,7 @@ class LocaleCatalogRegistry {
     LanguageMetadata(
       code: 'zh',
       nativeName: '简体中文',
-      englishName: 'Chinese (Simplified, isTier1: true)',
+      englishName: 'Chinese (Simplified)',
       flagEmoji: '🇨🇳',
       isTier1: true,
     ),

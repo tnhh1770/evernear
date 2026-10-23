@@ -4148,33 +4148,45 @@ class _LandingScreenState extends State<LandingScreen> {
       context: context,
       title: _tr('p006', 'Chính sách bảo mật'),
       updated: _tr('p007', 'Áp dụng cho ứng dụng di động Evernear và bản web Evernear. Cập nhật lần cuối: ngày 15 tháng 10 năm 2026.'),
-      intro: _tr('p008', 'Evernear là ứng dụng theo dõi bất động (Inactivity Monitor) và điểm danh an toàn cho người sống một mình hoặc người lớn tuổi. Chúng tôi xây dựng Evernear dựa trên nguyên tắc Bảo mật mặc định (Privacy-by-Default): không camera, không micro, không theo dõi GPS chạy nền liên tục.'),
+      intro: _tr('p008', 'Evernear là ứng dụng theo dõi bất động (Inactivity Monitor) và điểm danh an toàn cho người sống một mình hoặc người lớn tuổi. Chúng tôi xây dựng Evernear dựa trên nguyên tắc Bảo mật mặc định (Privacy-by-Default): không camera giám sát, không micro, không theo dõi GPS chạy nền liên tục.'),
       sections: [
         ('1. ${_tr('p021', 'Chúng tôi thu thập gì')}', [
-          '${_tr('p022', 'Tài khoản và hồ sơ')}: ${_tr('p023', 'Địa chỉ email, mật khẩu đã băm một chiều bằng bcrypt, tên hiển thị, số điện thoại, ngôn ngữ giao diện, múi giờ IANA và vai trò sử dụng.')}',
-          '${_tr('p024', 'Tín hiệu điểm danh và Hoạt động thụ động')}: ${_tr('p025', 'Ghi nhận các lần bấm nút “Tôi vẫn ổn” (1.0) và các tín hiệu sinh hoạt thụ động (0.2–0.8). Heartbeat kỹ thuật (0.0) chỉ phục vụ chẩn đoán kết nối.')}',
-          '${_tr('p026', 'Vị trí (Chỉ lấy một lần khi có sự đồng ý)')}: ${_tr('p027', 'Evernear tuyệt đối không theo dõi GPS chạy nền liên tục. Ứng dụng chỉ lấy toạ độ vị trí một lần duy nhất (single-shot) khi bạn đã cấp quyền và chủ động bấm Check-in hoặc khi xảy ra sự cố khẩn cấp.')}',
-          '${_tr('p028', 'Thông tin thiết bị & thông báo đẩy:')} ${_tr('p029', 'Mã thông báo đẩy (FCM Push Token), hệ điều hành, phiên bản ứng dụng và địa chỉ nhận cảnh báo (SMS / Telegram) do bạn cấu hình.')}',
+          '${_tr('p022', 'Tài khoản và hồ sơ')}: ${_tr('p023', 'Địa chỉ email, mật khẩu đã băm một chiều bằng bcrypt (chúng tôi không bao giờ lưu mật khẩu gốc), tên hiển thị, số điện thoại khẩn cấp (nếu bạn cung cấp), ngôn ngữ giao diện, múi giờ IANA và vai trò sử dụng (Người được bảo vệ / Người giám hộ).')}',
+          '${_tr('p024', 'Tín hiệu điểm danh và Hoạt động thụ động')}: ${_tr('p025', 'Ghi nhận các lần bấm nút “Tôi vẫn ổn” (trọng số 1.0) và các tín hiệu sinh hoạt thụ động (mở khoá màn hình, cắm sạc pin, bước chân — trọng số 0.2 đến 0.8). Tín hiệu kỹ thuật Heartbeat của thiết bị (trọng số 0.0) chỉ ghi nhận kết nối và mức pin để chẩn đoán kỹ thuật.')}',
+          '${_tr('p026', 'Vị trí (Chỉ lấy một lần khi có sự đồng ý)')}: ${_tr('p027', 'Evernear tuyệt đối không theo dõi GPS chạy nền liên tục. Ứng dụng chỉ lấy toạ độ vị trí một lần duy nhất (single-shot) khi bạn đã cấp quyền và chủ động bấm Check-in hoặc khi xảy ra sự cố khẩn cấp (ALERT_TRIGGERED) để giúp Người giám hộ trong gia đình biết vị trí hỗ trợ.')}',
+          '${_tr('p028', 'Thông tin thiết bị & thông báo đẩy:')} ${_tr('p029', 'Mã thông báo đẩy (APNs / FCM Push Token), hệ điều hành, phiên bản ứng dụng và địa chỉ nhận cảnh báo (SMS / Telegram) do bạn cấu hình.')}',
         ]),
-        ('2. ${_tr('p052', 'Vì sao chúng tôi dùng dữ liệu của bạn')}', [
+        ('2. ${_tr('p_perm_title', 'Quyền truy cập thiết bị trên iOS & Android (Purpose Strings)')}', [
+          _tr('p_perm_camera', 'Camera (NSCameraUsageDescription): Chỉ sử dụng khi bạn chủ động mở màn hình quét mã QR 48 giờ để ghép đôi với người thân. Evernear tuyệt đối không chụp ảnh, không quay video, không nhận diện khuôn mặt và không lưu trữ hay tải hình ảnh/video lên máy chủ. Bạn có thể nhập mã mời 6 ký tự thủ công mà không cần cấp quyền Camera.'),
+          _tr('p_perm_location', 'Vị trí khi sử dụng (NSLocationWhenInUseUsageDescription): Chỉ truy cập toạ độ GPS một lần (single-shot) khi bạn bấm Check-in hoặc khi phát cảnh báo quá hạn. Bạn vẫn có thể sử dụng tính năng điểm danh bình thường ngay cả khi tắt quyền vị trí.'),
+          _tr('p_perm_motion', 'Chuyển động & Thể chất (NSMotionUsageDescription): Chỉ đọc trạng thái chuyển động và bước chân thiết bị để ghi nhận tín hiệu sinh hoạt thụ động (trọng số 0.2–0.8), không thu thập dữ liệu sinh trắc học hay hồ sơ y tế.'),
+          _tr('p_perm_notif', 'Thông báo đẩy (APNs / FCM): Dùng để gửi lời nhắc điểm danh trong thời gian ân hạn (Grace Period) và thông báo sự cố tới Người giám hộ.'),
+        ]),
+        ('3. ${_tr('p052', 'Vì sao chúng tôi dùng dữ liệu của bạn & Cam kết Không theo dõi')}', [
           _tr('p053', 'Để vận hành máy trạng thái an toàn 8 bước — đánh giá đúng hạn check-in, thời gian ân hạn (Grace Period) và đóng băng đồng hồ trong Khung giờ yên tĩnh (Quiet Hours).'),
-          _tr('p054', 'Để gửi nhắc nhở và cảnh báo đa kênh — gửi thông báo đẩy FCM, SMS hoặc Telegram tới Người giám hộ khi quá hạn phản hồi.'),
+          _tr('p054', 'Để gửi nhắc nhở và cảnh báo đa kênh — gửi thông báo đẩy APNs/FCM, SMS hoặc Telegram tới Người giám hộ khi quá hạn phản hồi.'),
           _tr('p055', 'Tính toán Điểm Rủi ro Ưu tiên Vận hành (0–100) — giúp Người giám hộ biết mức độ ưu tiên phản hồi (phi y tế, không chẩn đoán bệnh).'),
-          _tr('p058', 'Chúng tôi không bao giờ bán dữ liệu cá nhân của bạn và không hiển thị bất kỳ quảng cáo nào.'),
+          _tr('p058', 'Chúng tôi không bao giờ bán dữ liệu cá nhân của bạn, không hiển thị quảng cáo, không sử dụng SDK theo dõi của bên thứ ba và không theo dõi người dùng xuyên ứng dụng (NSPrivacyTracking = false theo chuẩn App Tracking Transparency).'),
         ]),
-        ('3. ${_tr('p059', 'Ai có thể nhận dữ liệu của bạn')}', [
+        ('4. ${_tr('p059', 'Ai có thể nhận dữ liệu của bạn & Dịch vụ hạ tầng')}', [
           _tr('p060', 'Người bảo vệ được bạn phê duyệt — chỉ những người đã hoàn tất ghép đôi hai chiều qua mã mời QR 48 giờ mới thấy trạng thái an toàn và nhận cảnh báo của bạn.'),
-          _tr('p061', 'Hạ tầng kỹ thuật thiết yếu — dịch vụ gửi thông báo đẩy (Firebase Cloud Messaging) và cổng tin nhắn SMS / Telegram để chuyển phát cảnh báo khẩn cấp.'),
+          _tr('p061', 'Hạ tầng kỹ thuật thiết yếu — dịch vụ gửi thông báo đẩy (Apple Push Notification service / Firebase Cloud Messaging) và cổng tin nhắn SMS / Telegram để chuyển phát cảnh báo khẩn cấp.'),
         ]),
-        ('4. ${_tr('p072', 'Lưu trữ và Bảo mật')}', [
+        ('5. ${_tr('p072', 'Lưu trữ, Thời hạn lưu giữ và Bảo mật')}', [
           _tr('p073', 'Mọi giao tiếp giữa ứng dụng di động, trình duyệt web và máy chủ đều được mã hoá qua HTTPS / TLS (WSS cho WebSocket).'),
           _tr('p074', 'Mật khẩu được băm bằng thuật toán bcrypt; phiên đăng nhập sử dụng JWT Access Token ngắn hạn kết hợp Refresh Token xoay vòng.'),
+          _tr('p075', 'Thông tin tài khoản và cấu hình giám sát được lưu giữ trong suốt thời gian bạn duy trì tài khoản Evernear. Khi bạn xoá tài khoản, toàn bộ dữ liệu định danh cá nhân, thiết bị, tín hiệu hoạt động, check-in, vị trí và sự cố sẽ bị xoá và ẩn danh hoá vĩnh viễn ngay lập tức.'),
         ]),
-        ('5. ${_tr('p078', 'Xoá tài khoản và dữ liệu của bạn')}', [
-          _tr('p079', 'Bạn có thể tự xóa vĩnh viễn tài khoản và toàn bộ dữ liệu cá nhân bất cứ lúc nào trực tiếp ngay trong ứng dụng Evernear tại: Cài đặt (Settings) → Xóa tài khoản (Delete Account). Thao tác này gọi trực tiếp API DELETE /api/v1/users/me và có hiệu lực ngay lập tức.'),
+        ('6. ${_tr('p076', 'Quyền của bạn (GDPR, CCPA & Bảo vệ dữ liệu cá nhân)')}', [
+          _tr('p077', 'Theo GDPR và các quy định bảo vệ dữ liệu hiện hành, bạn có toàn quyền xem, chỉnh sửa hồ sơ, tạm dừng giám sát, xuất dữ liệu cá nhân (GET /api/v1/users/me/export), thu hồi quyền giám hộ hoặc xoá vĩnh viễn tài khoản bất cứ lúc nào. Mọi yêu cầu hỗ trợ xin gửi về support@erai.vn.'),
+        ]),
+        ('7. ${_tr('p078', 'Xoá tài khoản và dữ liệu của bạn')}', [
+          _tr('p079', 'Bạn có thể tự xóa vĩnh viễn tài khoản và toàn bộ dữ liệu cá nhân bất cứ lúc nào trực tiếp ngay trong ứng dụng Evernear tại: Cài đặt (Settings) → Quyền riêng tư & bảo mật → Xóa tài khoản (Delete Account). Thao tác này gọi trực tiếp API DELETE /api/v1/users/me và có hiệu lực ngay lập tức.'),
           _tr('p080', 'Nếu bạn đã gỡ cài đặt ứng dụng, bạn có thể gửi yêu cầu tại trang Yêu cầu xoá tài khoản (/delete-account) hoặc gửi email tới support@erai.vn.'),
         ]),
-        ('6. ${_tr('p096', 'Liên hệ')}', [
+        ('8. ${_tr('p_children_title', 'Quyền riêng tư của trẻ em & Thay đổi chính sách')}', [
+          _tr('p_children_desc', 'Evernear là dịch vụ hỗ trợ an toàn gia đình dành cho người trưởng thành tự nguyện đăng ký hoặc có sự quản lý hợp pháp của người giám hộ trong gia đình. Chúng tôi không cố ý thu thập trái phép dữ liệu cá nhân của trẻ em dưới 13 tuổi.'),
+          _tr('p091', 'Nếu chính sách này có thay đổi quan trọng, chúng tôi sẽ cập nhật ngày hiệu lực ở đầu trang và thông báo trong ứng dụng.'),
           _tr('p097', 'Mọi câu hỏi về quyền riêng tư và bảo vệ dữ liệu cá nhân, vui lòng liên hệ: support@erai.vn.'),
         ]),
       ],
@@ -4189,24 +4201,37 @@ class _LandingScreenState extends State<LandingScreen> {
       intro: _tr('t008', 'Những điều khoản này là thoả thuận giữa bạn và Evernear. Khi tạo tài khoản, ghép đôi giám hộ hay sử dụng ứng dụng, bạn đồng ý với các điều khoản dưới đây.'),
       sections: [
         ('1. ${_tr('t025', 'Evernear là gì')}', [
-          _tr('t026', 'Evernear là hệ thống theo dõi bất động (Inactivity Monitor) và điểm danh an toàn thụ động dành cho người sống một mình, người cao tuổi và người thân ở xa.'),
+          _tr('t026', 'Evernear là hệ thống theo dõi bất động (Inactivity Monitor) và điểm danh an toàn thụ động dành cho người sống một mình, người cao tuổi và người thân ở xa. Ứng dụng hỗ trợ điểm danh “Tôi vẫn ổn” (trọng số 1.0), ghi nhận tín hiệu sinh hoạt thụ động (0.2–0.8) và cảnh báo đa kênh tới Người giám hộ.'),
         ]),
-        ('2. ${_tr('t033', 'Ghép đôi và sự đồng thuận hai chiều')}', [
-          _tr('t035', 'Mọi mối quan hệ giữa Người được bảo vệ và Người giám hộ trong Evernear đều dựa trên sự đồng thuận tự nguyện thông qua mã mời QR 48 giờ. Bạn tuyệt đối không được sử dụng Evernear để theo dõi bất kỳ cá nhân nào khi chưa có sự đồng ý rõ ràng của họ.'),
+        ('2. ${_tr('t028', 'Tài khoản và xác thực')}', [
+          _tr('t029', 'Bạn có thể đăng ký và đăng nhập bằng địa chỉ email và mật khẩu bảo mật.'),
+          _tr('t031', 'Bạn chịu trách nhiệm bảo mật thiết bị, thông tin đăng nhập và đảm bảo số điện thoại nhận cảnh báo của mình là chính xác.'),
         ]),
-        ('3. ${_tr('t038', 'Giới hạn về dịch vụ khẩn cấp')}', [
+        ('3. ${_tr('t033', 'Ghép đôi và sự đồng thuận hai chiều')}', [
+          _tr('t035', 'Mọi mối quan hệ giữa Người được bảo vệ và Người giám hộ trong Evernear đều dựa trên sự đồng thuận tự nguyện thông qua mã mời QR 48 giờ. Bạn tuyệt đối không được sử dụng Evernear để theo dõi bất kỳ cá nhân nào khi chưa có sự đồng ý rõ ràng của họ. Cả hai phía đều có quyền tạm dừng hoặc huỷ liên kết bất cứ lúc nào.'),
+        ]),
+        ('4. ${_tr('t038', 'Giới hạn về dịch vụ khẩn cấp (Không thay thế 113/114/115/911)')}', [
           _tr('t040', 'Evernear KHÔNG phải là dịch vụ cứu hộ hay cấp cứu khẩn cấp công cộng.'),
-          _tr('t041', 'Tính năng cảnh báo quá hạn chỉ gửi thông báo tới những Người giám hộ trong gia đình bạn (qua FCM, SMS, Telegram). Ứng dụng không kết nối với cảnh sát, cứu hoả hay cấp cứu y tế (113, 114, 115, 911).'),
+          _tr('t041', 'Tính năng cảnh báo quá hạn chỉ gửi thông báo tới những Người giám hộ trong gia đình bạn (qua FCM, SMS, Telegram). Ứng dụng không kết nối với cảnh sát, cứu hoả hay cấp cứu y tế (113, 114, 115, 911). Trong tình huống nguy hiểm tính mạng tức thời, vui lòng gọi trực tiếp cơ quan cấp cứu địa phương.'),
         ]),
-        ('4. ${_tr('t045', 'Miễn trừ y tế (Phi chẩn đoán y khoa)')}', [
+        ('5. ${_tr('t045', 'Miễn trừ y tế (Phi chẩn đoán y khoa)')}', [
           _tr('t046', 'Evernear không phải thiết bị y tế và không đưa ra chẩn đoán y khoa.'),
-          _tr('t047', 'Điểm rủi ro tổng hợp (Composite Risk Score 0–100) và trạng thái máy chủ chỉ là công cụ ưu tiên vận hành dựa trên độ trễ điểm danh.'),
+          _tr('t047', 'Điểm rủi ro tổng hợp (Composite Risk Score 0–100) và trạng thái máy chủ chỉ là công cụ ưu tiên vận hành (Operational Prioritization) dựa trên độ trễ điểm danh, hoàn toàn không phản ánh tình trạng bệnh lý hay chẩn đoán sức khoẻ.'),
         ]),
-        ('5. ${_tr('t060', 'Chấm dứt và xoá tài khoản')}', [
+        ('6. ${_tr('t_bg_title', 'Giới hạn hoạt động nền của Hệ điều hành & Kết nối viễn thông')}', [
+          _tr('t_bg_desc', 'Mặc dù đồng hồ đếm ngược an toàn được vận hành độc lập trên máy chủ trung tâm (Server-Authoritative Clock), việc thu thập tín hiệu sinh hoạt thụ động dưới nền phụ thuộc vào cơ chế quản lý năng lượng của hệ điều hành (như iOS BGAppRefreshTask, Chế độ nguồn điện thấp / Low Power Mode). Ngoài ra, thông báo đẩy, SMS hoặc tọa độ vị trí có thể bị trễ nếu thiết bị hết pin, tắt nguồn, mất sóng viễn thông hoặc bị tắt quyền thông báo.'),
+        ]),
+        ('7. ${_tr('t051', 'Sử dụng hợp lệ')}', [
+          _tr('t052', 'Bạn cam kết không sử dụng Evernear để xâm phạm đời tư người khác, không gửi báo động giả gây hoang mang, và không tìm cách truy cập trái phép vào hệ thống máy chủ hoặc dữ liệu của tài khoản khác.'),
+        ]),
+        ('8. ${_tr('t060', 'Chấm dứt và xoá tài khoản')}', [
           _tr('t061', 'Bạn có thể ngừng sử dụng Evernear và tự xoá vĩnh viễn tài khoản ngay lập tức trong mục Cài đặt của ứng dụng, hoặc gửi yêu cầu qua trang Yêu cầu xoá tài khoản (/delete-account).'),
         ]),
-        ('6. ${_tr('t068', 'Liên hệ')}', [
-          _tr('t069', 'Mọi câu hỏi về Điều khoản dịch vụ này, vui lòng liên hệ: support@erai.vn.'),
+        ('9. ${_tr('t064', 'Giới hạn trách nhiệm')}', [
+          _tr('t065', 'Trong phạm vi pháp luật cho phép, Evernear được cung cấp trên cơ sở “nguyên trạng” và không chịu trách nhiệm đối với các thiệt hại gián tiếp phát sinh từ việc thông báo bị trì hoãn do mất kết nối viễn thông, thiết bị tắt nguồn hoặc cài đặt thông báo của hệ điều hành.'),
+        ]),
+        ('10. ${_tr('t066', 'Luật áp dụng & liên hệ')}', [
+          _tr('t069', 'Các điều khoản này được điều chỉnh bởi pháp luật Cộng hoà Xã hội Chủ nghĩa Việt Nam. Mọi câu hỏi xin liên hệ support@erai.vn.'),
         ]),
       ],
     );

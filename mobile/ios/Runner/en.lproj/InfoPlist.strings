@@ -1,0 +1,5 @@
+"CFBundleDisplayName" = "Evernear Care";
+"CFBundleName" = "Evernear Care";
+"NSLocationWhenInUseUsageDescription" = "Evernear Care only captures your location once when you tap 'I am OK' or during an unacknowledged safety alert to share your whereabouts with your authorized family guardians.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Evernear Care only captures your location when you tap 'I am OK' or during an unacknowledged safety alert to share your whereabouts with your authorized family guardians. Continuous background GPS tracking is never used.";
+"NSCameraUsageDescription" = "Evernear Care needs camera access solely to scan family QR invitation codes for pairing with your loved ones. No photos or videos are recorded or stored.";

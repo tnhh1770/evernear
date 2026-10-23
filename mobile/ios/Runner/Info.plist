@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mobile</string>
+	<string>Evernear Care</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>mobile</string>
+	<string>Evernear Care</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -24,6 +24,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -70,6 +72,7 @@
 	<array>
 		<string>fetch</string>
 		<string>processing</string>
+		<string>remote-notification</string>
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
@@ -77,22 +80,24 @@
 		<string>dev.flutter.workmanager.iOSPeriodicTask</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Carely chỉ sử dụng vị trí khi bạn bấm xác nhận an toàn để chia sẻ với người thân bảo hộ.</string>
+	<string>Evernear Care chỉ ghi nhận vị trí một lần khi bạn bấm xác nhận 'Tôi vẫn ổn' hoặc khi xảy ra cảnh báo an toàn để chia sẻ với người thân được ủy quyền. (Evernear Care only captures your location once upon check-in or during an alert to share with authorized family guardians.)</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Carely chỉ sử dụng vị trí khi bạn bấm xác nhận an toàn để chia sẻ với người thân bảo hộ.</string>
+	<string>Evernear Care chỉ ghi nhận vị trí một lần khi bạn bấm xác nhận 'Tôi vẫn ổn' hoặc khi xảy ra cảnh báo an toàn để chia sẻ với người thân được ủy quyền, không theo dõi GPS liên tục. (Evernear Care only captures single-shot location upon check-in or safety alerts, never continuous background GPS.)</string>
 	<!-- Camera Usage Description for QR Pairing (Ext-M2) -->
 	<key>NSCameraUsageDescription</key>
-	<string>Carely cần quyền camera để quét mã QR kết nối nhanh chóng và an tâm với người thân.</string>
-	<!-- URL Scheme for Family QR Deep Links (Ext-M2) -->
+	<string>Evernear Care chỉ sử dụng camera để quét mã QR kết nối gia đình với người thân, không chụp ảnh hoặc quay video. (Evernear Care uses the camera solely to scan family QR invitation codes; no photos or videos are recorded.)</string>
+	<!-- URL Schemes for Family QR Deep Links -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>vn.carely.app</string>
+			<string>com.evernear.evernear</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>evernear</string>
+				<string>evenear</string>
 				<string>carely</string>
 			</array>
 		</dict>

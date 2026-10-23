@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '../users/entities/user.entity';
 import {
@@ -26,6 +27,9 @@ import { JwtStrategy } from './jwt.strategy';
 
 @Injectable()
 export class AuthService {
+  private appleJwksCache: Record<string, any> | null = null;
+  private appleJwksExpiresAt = 0;
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -515,6 +519,25 @@ export class AuthService {
         throw new UnauthorizedException(`Unsupported Apple token algorithm: ${header.alg}`);
       }
 
+      // Cryptographic RS256 verification against Apple's public JWKS (https://appleid.apple.com/auth/keys)
+      if (process.env.NODE_ENV === 'production' || header?.kid) {
+        if (!header?.kid) {
+          throw new UnauthorizedException('Apple identity token missing "kid" in header');
+        }
+        const jwk = await this.getApplePublicKey(header.kid);
+        if (jwk) {
+          const publicKey = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+          const verifier = crypto.createVerify('RSA-SHA256');
+          verifier.update(`${parts[0]}.${parts[1]}`);
+          const isValid = verifier.verify(publicKey, Buffer.from(parts[2], 'base64url'));
+          if (!isValid) {
+            throw new UnauthorizedException('Apple identity token RSA signature verification failed');
+          }
+        } else if (process.env.NODE_ENV === 'production') {
+          throw new UnauthorizedException(`No matching Apple public key found for kid: ${header.kid}`);
+        }
+      }
+
       const decoded = this.jwtService.decode(token) as any;
       if (!decoded || !decoded.sub || typeof decoded.sub !== 'string') {
         throw new UnauthorizedException('Invalid Apple identity token payload: missing or invalid sub claim');
@@ -537,6 +560,34 @@ export class AuthService {
     } catch (err: any) {
       if (err instanceof UnauthorizedException) throw err;
       throw new UnauthorizedException(`Failed to verify Apple token: ${err?.message || err}`);
+    }
+  }
+
+  private async getApplePublicKey(kid: string): Promise<any | null> {
+    const now = Date.now();
+    if (this.appleJwksCache && this.appleJwksExpiresAt > now && this.appleJwksCache[kid]) {
+      return this.appleJwksCache[kid];
+    }
+
+    try {
+      const response = await fetch('https://appleid.apple.com/auth/keys', {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) return null;
+      const body = (await response.json()) as { keys?: any[] };
+      if (!Array.isArray(body?.keys)) return null;
+
+      const map: Record<string, any> = {};
+      for (const k of body.keys) {
+        if (k?.kid) {
+          map[k.kid] = k;
+        }
+      }
+      this.appleJwksCache = map;
+      this.appleJwksExpiresAt = now + 6 * 3600 * 1000; // Cache 6 hours
+      return map[kid] || null;
+    } catch {
+      return null;
     }
   }
 

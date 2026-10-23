@@ -55,31 +55,45 @@
           <li><strong data-i18n="p028">Thông tin thiết bị và Thông báo đẩy:</strong> <span data-i18n="p029">Mã thông báo đẩy FCM (Firebase Cloud Messaging), hệ điều hành, phiên bản ứng dụng và địa chỉ nhận cảnh báo (SMS / Telegram) do chính bạn cấu hình.</span></li>
         </ul>
 
-        <h2 id="usage">2. <span data-i18n="p052">Vì sao chúng tôi dùng dữ liệu của bạn</span></h2>
+        <h2 id="permissions">2. <span data-i18n="p_perm_title">Quyền truy cập thiết bị trên iOS &amp; Android (Purpose Strings)</span></h2>
+        <ul>
+          <li data-i18n="p_perm_camera"><strong>Camera (NSCameraUsageDescription):</strong> Chỉ sử dụng khi bạn chủ động mở màn hình quét mã QR 48 giờ để ghép đôi với người thân. Evernear tuyệt đối không chụp ảnh, không quay video, không nhận diện khuôn mặt và không lưu trữ hay tải hình ảnh/video lên máy chủ. Bạn có thể nhập mã mời 6 ký tự thủ công mà không cần cấp quyền Camera.</li>
+          <li data-i18n="p_perm_location"><strong>Vị trí khi sử dụng (NSLocationWhenInUseUsageDescription):</strong> Chỉ truy cập toạ độ GPS một lần (single-shot) khi bạn bấm Check-in hoặc khi phát cảnh báo quá hạn. Bạn vẫn có thể sử dụng tính năng điểm danh bình thường ngay cả khi tắt quyền vị trí.</li>
+          <li data-i18n="p_perm_motion"><strong>Chuyển động &amp; Thể chất (NSMotionUsageDescription):</strong> Chỉ đọc trạng thái chuyển động và bước chân thiết bị để ghi nhận tín hiệu sinh hoạt thụ động (trọng số 0.2–0.8), không thu thập dữ liệu sinh trắc học hay hồ sơ y tế.</li>
+          <li data-i18n="p_perm_notif"><strong>Thông báo đẩy (APNs / FCM):</strong> Dùng để gửi lời nhắc điểm danh trong thời gian ân hạn (Grace Period) và thông báo sự cố tới Người giám hộ.</li>
+        </ul>
+
+        <h2 id="usage">3. <span data-i18n="p052">Vì sao chúng tôi dùng dữ liệu của bạn &amp; Cam kết Không theo dõi</span></h2>
         <ul>
           <li data-i18n="p053"><strong>Để vận hành máy trạng thái an toàn 8 bước</strong> — đánh giá đúng hạn check-in, thời gian ân hạn (Grace Period) và đóng băng đồng hồ trong Khung giờ yên tĩnh (Quiet Hours).</li>
-          <li data-i18n="p054"><strong>Để gửi nhắc nhở và cảnh báo đa kênh</strong> — gửi thông báo đẩy FCM, SMS hoặc Telegram tới những Người giám hộ mà bạn đã ghép đôi khi quá hạn phản hồi.</li>
+          <li data-i18n="p054"><strong>Để gửi nhắc nhở và cảnh báo đa kênh</strong> — gửi thông báo đẩy APNs/FCM, SMS hoặc Telegram tới những Người giám hộ mà bạn đã ghép đôi khi quá hạn phản hồi.</li>
           <li data-i18n="p055"><strong>Để tính Điểm rủi ro vận hành (Composite Risk Score 0–100)</strong> — hỗ trợ Người giám hộ ưu tiên xử lý sự cố (hoàn toàn phi chẩn đoán y tế).</li>
         </ul>
-        <p data-i18n="p058">Chúng tôi <strong>không bao giờ bán</strong> dữ liệu cá nhân của bạn và <strong>không hiển thị bất kỳ quảng cáo nào</strong>.</p>
+        <p data-i18n="p058">Chúng tôi <strong>không bao giờ bán</strong> dữ liệu cá nhân của bạn, <strong>không hiển thị quảng cáo</strong>, không sử dụng SDK theo dõi bên thứ ba và không theo dõi người dùng xuyên ứng dụng (<code>NSPrivacyTracking = false</code>).</p>
 
-        <h2 id="sharing">3. <span data-i18n="p059">Ai nhìn thấy dữ liệu của bạn</span></h2>
+        <h2 id="sharing">4. <span data-i18n="p059">Ai nhìn thấy dữ liệu của bạn &amp; Dịch vụ hạ tầng</span></h2>
         <ul>
           <li data-i18n="p060"><strong>Những Người giám hộ được bạn chấp thuận</strong> — chỉ những người đã hoàn tất ghép đôi hai chiều với bạn qua mã mời QR 48 giờ mới nhìn thấy trạng thái an toàn và thông báo sự cố của bạn.</li>
-          <li data-i18n="p061"><strong>Hạ tầng kỹ thuật thiết yếu</strong> — dịch vụ gửi thông báo đẩy (Firebase Cloud Messaging), cổng SMS / Telegram để chuyển phát cảnh báo khẩn cấp.</li>
+          <li data-i18n="p061"><strong>Hạ tầng kỹ thuật thiết yếu</strong> — dịch vụ gửi thông báo đẩy (Apple Push Notification service / Firebase Cloud Messaging), cổng SMS / Telegram để chuyển phát cảnh báo khẩn cấp.</li>
         </ul>
 
-        <h2 id="security">4. <span data-i18n="p072">Lưu trữ và bảo mật</span></h2>
+        <h2 id="security">5. <span data-i18n="p072">Lưu trữ, Thời hạn lưu giữ và Bảo mật</span></h2>
         <ul>
           <li data-i18n="p073">Mọi giao tiếp giữa ứng dụng di động, trình duyệt web và máy chủ đều được mã hoá qua <strong>HTTPS / TLS (WSS cho WebSocket)</strong>.</li>
           <li data-i18n="p074">Mật khẩu được băm bằng thuật toán <strong>bcrypt</strong>; phiên đăng nhập sử dụng <strong>JWT Access Token</strong> ngắn hạn kèm cơ chế xoay vòng <strong>Refresh Token</strong> chống đánh cắp.</li>
+          <li data-i18n="p075">Thông tin tài khoản và cấu hình giám sát được lưu giữ trong suốt thời gian bạn duy trì tài khoản Evernear. Khi bạn thực hiện xoá tài khoản, toàn bộ dữ liệu định danh cá nhân, thiết bị, tín hiệu hoạt động, check-in, vị trí và sự cố sẽ bị xoá và ẩn danh hoá vĩnh viễn ngay lập tức.</li>
         </ul>
 
-        <h2 id="delete">5. <span data-i18n="p078">Xoá tài khoản và dữ liệu của bạn (Quyền được lãng quên)</span></h2>
-        <p data-i18n="p079">Bạn có thể tự xóa vĩnh viễn tài khoản và toàn bộ dữ liệu cá nhân bất cứ lúc nào <strong>trực tiếp ngay trong ứng dụng Evernear</strong> tại: <strong>Cài đặt (Settings) → Xóa tài khoản (Delete Account)</strong>. Thao tác này gọi trực tiếp API <code>DELETE /api/v1/users/me</code> và có hiệu lực ngay lập tức.</p>
+        <h2 id="rights">6. <span data-i18n="p076">Quyền của bạn (GDPR, CCPA &amp; Bảo vệ dữ liệu cá nhân)</span></h2>
+        <p data-i18n="p077">Theo GDPR và các quy định bảo vệ dữ liệu hiện hành, bạn có toàn quyền xem, chỉnh sửa hồ sơ, tạm dừng giám sát, xuất dữ liệu cá nhân (<code>GET /api/v1/users/me/export</code>), thu hồi quyền giám hộ hoặc xoá vĩnh viễn tài khoản bất cứ lúc nào. Mọi yêu cầu hỗ trợ xin gửi về <a href="mailto:support@erai.vn">support@erai.vn</a>.</p>
+
+        <h2 id="delete">7. <span data-i18n="p078">Xoá tài khoản và dữ liệu của bạn (Quyền được lãng quên)</span></h2>
+        <p data-i18n="p079">Bạn có thể tự xóa vĩnh viễn tài khoản và toàn bộ dữ liệu cá nhân bất cứ lúc nào <strong>trực tiếp ngay trong ứng dụng Evernear</strong> tại: <strong>Cài đặt (Settings) → Quyền riêng tư &amp; bảo mật → Xóa tài khoản (Delete Account)</strong>. Thao tác này gọi trực tiếp API <code>DELETE /api/v1/users/me</code> và có hiệu lực ngay lập tức.</p>
         <p data-i18n="p080">Nếu bạn đã gỡ cài đặt ứng dụng, bạn có thể gửi yêu cầu qua trang <a href="/delete-account">Yêu cầu xoá tài khoản (/delete-account)</a> hoặc gửi thư tới <a href="mailto:support@erai.vn">support@erai.vn</a>.</p>
 
-        <h2 id="contact">6. <span data-i18n="p096">Liên hệ</span></h2>
+        <h2 id="contact">8. <span data-i18n="p_children_title">Quyền riêng tư của trẻ em &amp; Thay đổi chính sách</span></h2>
+        <p data-i18n="p_children_desc">Evernear là dịch vụ hỗ trợ an toàn gia đình dành cho người trưởng thành tự nguyện đăng ký hoặc có sự quản lý hợp pháp của người giám hộ trong gia đình. Chúng tôi không cố ý thu thập trái phép dữ liệu cá nhân của trẻ em dưới 13 tuổi.</p>
+        <p data-i18n="p091">Nếu chính sách này có thay đổi quan trọng, chúng tôi sẽ cập nhật ngày hiệu lực ở đầu trang và thông báo trong ứng dụng.</p>
         <p data-i18n="p097">Mọi câu hỏi về quyền riêng tư và bảo vệ dữ liệu, vui lòng liên hệ: <a href="mailto:support@erai.vn"><strong>support@erai.vn</strong></a>.</p>
       </article>
     </div>

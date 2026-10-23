@@ -471,6 +471,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+
+                    // Terms of Use & Privacy Policy links (Apple Guideline 5.1.1(i))
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          context.tr('auth_agree_terms_prefix', fallback: 'Tôi đồng ý với '),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF5A766D),
+                          ),
+                        ),
+                        InkWell(
+                          key: const Key('register_terms_link'),
+                          onTap: () => WebLandingLauncher.openLanding(
+                            context,
+                            path: '/terms',
+                          ),
+                          child: Text(
+                            context.tr('auth_terms_of_use', fallback: 'Điều khoản sử dụng'),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF2E7D60),
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          context.tr('auth_and_conjunction', fallback: ' và '),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF5A766D),
+                          ),
+                        ),
+                        InkWell(
+                          key: const Key('register_privacy_link'),
+                          onTap: () => WebLandingLauncher.openLanding(
+                            context,
+                            path: '/privacy',
+                          ),
+                          child: Text(
+                            context.tr('auth_privacy_policy', fallback: 'Chính sách quyền riêng tư'),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF2E7D60),
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

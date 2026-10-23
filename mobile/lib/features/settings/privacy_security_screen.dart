@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/services/web_landing_launcher.dart';
 import '../auth/auth_provider.dart';
 import '../auth/onboarding_screen.dart';
 
@@ -318,7 +319,25 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   },
                 ),
 
-                // 4. Xóa tài khoản
+                // 4. Chính sách quyền riêng tư (Apple Guideline 5.1.1(i))
+                _buildItemCard(
+                  icon: Icons.privacy_tip_outlined,
+                  title: context.tr(
+                    'settings_privacy',
+                    fallback: 'Chính sách quyền riêng tư',
+                  ),
+                  subtitle: context.tr(
+                    'auth_terms_of_use',
+                    fallback: 'Điều khoản sử dụng',
+                  ),
+                  showDivider: true,
+                  onTap: () => WebLandingLauncher.openLanding(
+                    context,
+                    path: '/privacy',
+                  ),
+                ),
+
+                // 5. Xóa tài khoản
                 _buildItemCard(
                   icon: Icons.delete_outline_rounded,
                   title: context.tr(
@@ -331,6 +350,37 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   ),
                   showDivider: false,
                   onTap: () => _showDeleteAccountDialog(context, auth),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('privacy_notice'),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  context.tr('server_authoritative_notice'),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                    height: 1.45,
+                  ),
                 ),
               ],
             ),

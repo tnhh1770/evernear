@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/relationship_model.dart';
@@ -517,7 +518,8 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
   }
 
   Future<void> _handleCall() async {
-    final hasPhone = widget.phone.trim().isNotEmpty;
+    final cleanPhone = widget.phone.trim();
+    final hasPhone = cleanPhone.isNotEmpty;
     if (!hasPhone) {
       if (!mounted) return;
       final noPhoneMsg = context.tr(
@@ -533,12 +535,21 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
       );
       return;
     }
-    await Clipboard.setData(ClipboardData(text: widget.phone));
+    try {
+      final telUri = Uri(scheme: 'tel', path: cleanPhone);
+      if (await canLaunchUrl(telUri)) {
+        await launchUrl(telUri);
+      } else {
+        await Clipboard.setData(ClipboardData(text: cleanPhone));
+      }
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: cleanPhone));
+    }
     if (!mounted) return;
     final msg = context.tr(
       'relative_detail_contacting',
-      args: {'name': '${widget.name} (${widget.phone})'},
-      fallback: 'Đang kết nối cuộc gọi tới ${widget.name} (${widget.phone})...',
+      args: {'name': '${widget.name} ($cleanPhone)'},
+      fallback: 'Đang kết nối cuộc gọi tới ${widget.name} ($cleanPhone)...',
     );
     setState(() {
       _statusFeedback = msg;
@@ -562,10 +573,15 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
       body: body,
     );
     if (!mounted) return;
+    final feedbackMsg = context.tr(
+      'incident_notif_sent_relative',
+      args: {'time': widget.name},
+      fallback:
+          'Đã gửi tín hiệu nhắc xác nhận an toàn tới thiết bị của ${widget.name}.',
+    );
     setState(() {
       _pingSent = true;
-      _statusFeedback =
-          'Đã gửi tín hiệu nhắc xác nhận an toàn tới thiết bị của ${widget.name}.';
+      _statusFeedback = feedbackMsg;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -578,11 +594,31 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
   Future<void> _handleSendMessage(String text) async {
     final clean = text.trim();
     if (clean.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: clean));
+    final cleanPhone = widget.phone.trim();
+    try {
+      if (cleanPhone.isNotEmpty) {
+        final smsUri = Uri(
+          scheme: 'sms',
+          path: cleanPhone,
+          queryParameters: <String, String>{'body': clean},
+        );
+        if (await canLaunchUrl(smsUri)) {
+          await launchUrl(smsUri);
+        } else {
+          await Clipboard.setData(ClipboardData(text: clean));
+        }
+      } else {
+        await Clipboard.setData(ClipboardData(text: clean));
+      }
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: clean));
+    }
     if (!mounted) return;
     _messageController.clear();
+    final sentMsg =
+        '${context.tr('incident_contacted_relative', fallback: 'Đã liên hệ với người thân')} (${widget.name}): "$clean"';
     setState(() {
-      _statusFeedback = 'Đã gửi tin nhắn tới ${widget.name}: "$clean"';
+      _statusFeedback = sentMsg;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -880,8 +916,14 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
                 ),
                 label: Text(
                   _pingSent
-                      ? 'Đã gửi nhắc xác nhận an toàn'
-                      : 'Gửi tín hiệu nhắc xác nhận an toàn',
+                      ? context.tr(
+                          'check_in_success',
+                          fallback: 'Đã gửi nhắc xác nhận an toàn',
+                        )
+                      : context.tr(
+                          'monitoring_check_reminder_label',
+                          fallback: 'Gửi tín hiệu nhắc xác nhận an toàn',
+                        ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
@@ -908,9 +950,12 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Gửi lời nhắn hỏi thăm nhanh',
-                    style: TextStyle(
+                  Text(
+                    context.tr(
+                      'check_in_quick_hints',
+                      fallback: 'Gửi lời nhắn hỏi thăm nhanh',
+                    ),
+                    style: const TextStyle(
                       fontSize: 15.5,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
@@ -924,34 +969,44 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
                       ActionChip(
                         label: Text(
                           context.tr(
-                            'relative_detail_msg_are_you_ok',
+                            'check_in_prompt',
                             fallback: 'Bạn có ổn không?',
                           ),
                         ),
                         onPressed: () => _handleSendMessage(
-                          'Chào ${widget.name}, bạn có ổn không? Nhấn xác nhận an toàn trên ứng dụng nhé!',
+                          context.tr(
+                            'check_in_prompt',
+                            fallback: 'Bạn vẫn ổn chứ? Vui lòng chạm để xác nhận.',
+                          ),
                         ),
                       ),
                       ActionChip(
                         label: Text(
                           context.tr(
-                            'relative_detail_msg_confirm_safe',
+                            'check_in_title',
                             fallback: 'Nhớ xác nhận an toàn nhé',
                           ),
                         ),
                         onPressed: () => _handleSendMessage(
-                          'Nhớ bấm nút "Tôi vẫn ổn" trên ứng dụng Evenear giúp gia đình yên tâm nhé!',
+                          context.tr(
+                            'check_in_subtitle',
+                            fallback:
+                                'Nhấn nút xác nhận để người thân yên tâm rằng bạn đang bình an.',
+                          ),
                         ),
                       ),
                       ActionChip(
                         label: Text(
                           context.tr(
-                            'relative_detail_msg_call_back',
+                            'incident_acknowledge_button',
                             fallback: 'Gọi lại cho mình nhé',
                           ),
                         ),
                         onPressed: () => _handleSendMessage(
-                          'Khi nào xem tin nhắn nhớ gọi lại cho mình nhé!',
+                          context.tr(
+                            'incident_acknowledge_button',
+                            fallback: 'Khi nào xem tin nhắn nhớ gọi lại cho mình nhé!',
+                          ),
                         ),
                       ),
                     ],
@@ -963,7 +1018,10 @@ class _ContactRelativeScreenState extends State<ContactRelativeScreen> {
                         child: TextField(
                           controller: _messageController,
                           decoration: InputDecoration(
-                            hintText: 'Nhập lời nhắn gửi tới ${widget.name}...',
+                            hintText: context.tr(
+                              'incident_note_hint',
+                              fallback: 'Nhập lời nhắn...',
+                            ),
                             filled: true,
                             fillColor: AppColors.inputFill,
                             contentPadding: const EdgeInsets.symmetric(

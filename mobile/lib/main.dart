@@ -263,7 +263,7 @@ class EvernearApp extends StatelessWidget {
           settings: const RouteSettings(name: '/delete-account'),
           builder: (_) => isWeb
               ? const LandingScreen(page: SitePageType.deleteAccount)
-              : const AccountSettingsScreen(),
+              : const PrivacySecurityScreen(),
         );
       default:
         return MaterialPageRoute(

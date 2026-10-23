@@ -280,15 +280,24 @@ class LocalStorage {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyAccessToken);
     await prefs.remove(_keyRefreshToken);
+    await prefs.remove(_keyDeviceId);
     await prefs.remove(_keyUserId);
     await prefs.remove(_keyUserEmail);
     await prefs.remove(_keyUserName);
     await prefs.remove(_keyUserProfile);
+    await prefs.remove(_keyLastHeartbeatAt);
+    await prefs.remove(_keyReadNotificationIds);
+    await prefs.remove(_keyDismissedNotificationIds);
+    await prefs.remove(keySelfMonitoringConfig);
     await prefs.remove(_legacyAccessToken);
     await prefs.remove(_legacyRefreshToken);
+    await prefs.remove(_legacyDeviceId);
     await prefs.remove(_legacyUserId);
     await prefs.remove(_legacyUserEmail);
     await prefs.remove(_legacyUserName);
     await prefs.remove(_legacyUserProfile);
+    await prefs.remove(_legacyLastHeartbeatAt);
+    await prefs.remove(_legacyReadNotificationIds);
+    await prefs.remove(_legacyDismissedNotificationIds);
   }
 }
