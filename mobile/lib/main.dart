@@ -286,6 +286,7 @@ class EvernearApp extends StatelessWidget {
       ],
       child: Consumer<LocaleProvider>(
         builder: (context, localeProvider, child) {
+          localeProvider.ensureEnDefaultMigration();
           return MaterialApp(
             navigatorKey: NavigationService.navigatorKey,
             onGenerateTitle: (ctx) => ctx.tr('app_name', fallback: 'Evenear'),
@@ -472,13 +473,15 @@ class _AuthGateState extends State<AuthGate> {
           ).setSelectedTabIndex(widget.initialTabIndex!);
         } catch (_) {}
       }
-      final preferredLang = auth.currentUser?.preferredLanguage;
-      if (preferredLang != null && preferredLang.isNotEmpty) {
-        try {
-          final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-          await localeProvider.syncFromUserProfile(preferredLang);
-        } catch (_) {}
-      }
+      try {
+        final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+        final activeLang = localeProvider.currentLanguageCode;
+        final preferredLang = auth.currentUser?.preferredLanguage;
+        if (preferredLang != activeLang) {
+          auth.updateUserPreferredLanguage(activeLang);
+          await localeProvider.syncCurrentLocaleToUser(auth);
+        }
+      } catch (_) {}
     }
     if (mounted) setState(() => _checked = true);
   }

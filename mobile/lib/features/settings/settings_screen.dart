@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/locale_catalog_registry.dart';
 import '../../core/i18n/locale_provider.dart';
+import '../../core/widgets/country_flag_badge.dart';
 import '../auth/auth_provider.dart';
 import '../devices/devices_screen.dart';
 import '../monitoring/monitoring_settings_screen.dart';
@@ -248,6 +249,13 @@ class SettingsScreen extends StatelessWidget {
       localeProvider = Provider.of<LocaleProvider>(context);
     } catch (_) {}
 
+    final activeLang = localeProvider?.currentLanguage ??
+        LocaleCatalogRegistry.findByCode(
+          Localizations.maybeLocaleOf(context)?.languageCode ??
+              AppLocalizations.globalLocaleCode,
+        ) ??
+        LocaleCatalogRegistry.defaultLanguage;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -383,7 +391,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   subtitle:
                       localeProvider?.currentLanguageDisplayName ??
-                      '${(LocaleCatalogRegistry.findByCode(Localizations.maybeLocaleOf(context)?.languageCode ?? AppLocalizations.globalLocaleCode) ?? LocaleCatalogRegistry.defaultLanguage).nativeName} (${context.tr('common_auto', fallback: 'Auto')})',
+                      '${activeLang.nativeName} (${context.tr('common_auto', fallback: 'Auto')})',
+                  flagCountryCode: activeLang.countryCode,
                   showDivider: false,
                   onTap: () {
                     Navigator.of(context).push(
@@ -430,6 +439,7 @@ class SettingsScreen extends StatelessWidget {
     required IconData icon,
     required String label,
     String? subtitle,
+    String? flagCountryCode,
     bool showDivider = true,
     required VoidCallback onTap,
   }) {
@@ -458,12 +468,29 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            color: AppColors.textSecondary,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (flagCountryCode != null) ...[
+                              CountryFlagBadge(
+                                countryCode: flagCountryCode,
+                                width: 18,
+                                height: 12,
+                                borderRadius: 2.5,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Flexible(
+                              child: Text(
+                                subtitle,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],

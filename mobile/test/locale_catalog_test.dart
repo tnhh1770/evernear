@@ -3,11 +3,66 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/i18n/locale_catalog_registry.dart';
 import 'package:mobile/core/i18n/app_localizations.dart';
 import 'package:mobile/core/i18n/catalogs/catalogs.dart';
+import 'package:mobile/core/widgets/country_flag_badge.dart';
+import 'package:mobile/features/landing/site_i18n_controller.dart';
 
 void main() {
   group('LocaleCatalogRegistry Unit Tests', () {
     test('Registry contains 50+ world languages', () {
       expect(LocaleCatalogRegistry.allLanguages.length, greaterThanOrEqualTo(50));
+    });
+
+    test('English is first and defaults to US English with US flag', () {
+      final first = LocaleCatalogRegistry.allLanguages.first;
+      expect(first.code, 'en');
+      expect(first.nativeName, 'English');
+      expect(first.englishName, 'English');
+      expect(first.countryCode, 'US');
+      expect(first.flagEmoji, '🇺🇸');
+
+      final siteFirst = SiteI18nController.languages.first;
+      expect(siteFirst.code, 'en');
+      expect(siteFirst.englishName, 'English (US)');
+      expect(siteFirst.country, 'US');
+    });
+
+    test('Every language has an accurate 2-letter ISO countryCode and flagEmoji', () {
+      for (final lang in LocaleCatalogRegistry.allLanguages) {
+        expect(lang.countryCode.length, 2,
+            reason: 'Language ${lang.code} must have a 2-letter ISO countryCode');
+        expect(lang.countryCode, equals(lang.countryCode.toUpperCase()));
+        expect(lang.flagEmoji.isNotEmpty, isTrue);
+      }
+      expect(LocaleCatalogRegistry.getByCode('vi')!.countryCode, 'VN');
+      expect(LocaleCatalogRegistry.getByCode('pt')!.countryCode, 'PT');
+      expect(LocaleCatalogRegistry.getByCode('ar')!.countryCode, 'SA');
+      expect(LocaleCatalogRegistry.getByCode('sw')!.countryCode, 'KE');
+      expect(LocaleCatalogRegistry.getByCode('ca')!.countryCode, 'AD');
+    });
+
+    testWidgets('CountryFlagBadge renders cleanly for all 60 app languages and 36 site languages', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Wrap(
+                children: [
+                  for (final lang in LocaleCatalogRegistry.allLanguages)
+                    CountryFlagBadge(
+                      countryCode: lang.countryCode,
+                    ),
+                  for (final siteLang in SiteI18nController.languages)
+                    CountryFlagBadge(
+                      countryCode: siteLang.country,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.byType(CountryFlagBadge),
+          findsNWidgets(LocaleCatalogRegistry.allLanguages.length + SiteI18nController.languages.length));
     });
 
     test('Registry contains all 14 Tier-1 languages', () {

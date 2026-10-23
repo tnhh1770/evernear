@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/locale_provider.dart';
+import '../../core/widgets/country_flag_badge.dart';
 import '../../core/widgets/evenear_illustrations.dart';
 import 'site_i18n_controller.dart';
 
@@ -109,6 +110,9 @@ class _LandingScreenState extends State<LandingScreen> {
         return;
       }
       if (localeProvider.isDeviceDefault) {
+        if (_i18n.isInitialized && _i18n.currentCode != 'en') {
+          _i18n.selectLanguage('en');
+        }
         return;
       }
       final rawLang = localeProvider.currentLanguageCode;
@@ -488,7 +492,12 @@ class _LandingScreenState extends State<LandingScreen> {
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
-      icon: const Icon(Icons.language, size: 16),
+      icon: CountryFlagBadge(
+        countryCode: _i18n.currentMeta.country,
+        width: 20,
+        height: 14,
+        borderRadius: 3,
+      ),
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -643,25 +652,38 @@ class _LandingScreenState extends State<LandingScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(color: active ? _terra : _line),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                child: Row(
                                   children: [
-                                    Text(
-                                      lang.nativeName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                        color: _espresso,
-                                      ),
+                                    CountryFlagBadge(
+                                      countryCode: lang.country,
+                                      width: 22,
+                                      height: 15,
+                                      borderRadius: 3,
                                     ),
-                                    Text(
-                                      lang.englishName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 11, color: _ink3),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            lang.nativeName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              color: _espresso,
+                                            ),
+                                          ),
+                                          Text(
+                                            lang.englishName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 11, color: _ink3),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),

@@ -57,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (success && mounted) {
-      if (localeProvider != null && !localeProvider.isDeviceDefault) {
+      if (localeProvider != null) {
         auth.updateUserPreferredLanguage(activeLang);
       }
       Navigator.of(context).pushAndRemoveUntil(

@@ -1,48 +1,91 @@
 /* Evernear marketing & legal site — 36-language i18n + session-aware CTA */
 (function () {
   var LANGS = [
-    { code: "en", name: "English", en: "English (US)" },
-    { code: "vi", name: "Tiếng Việt", en: "Vietnamese" },
-    { code: "zh", name: "中文", en: "Chinese" },
-    { code: "es", name: "Español", en: "Spanish" },
-    { code: "fr", name: "Français", en: "French" },
-    { code: "de", name: "Deutsch", en: "German" },
-    { code: "ja", name: "日本語", en: "Japanese" },
-    { code: "ko", name: "한국어", en: "Korean" },
-    { code: "pt", name: "Português", en: "Portuguese" },
-    { code: "ru", name: "Русский", en: "Russian" },
-    { code: "ar", name: "العربية", en: "Arabic", rtl: true },
-    { code: "hi", name: "हिन्दी", en: "Hindi" },
-    { code: "th", name: "ไทย", en: "Thai" },
-    { code: "id", name: "Bahasa Indonesia", en: "Indonesian" },
-    { code: "ms", name: "Bahasa Melayu", en: "Malay" },
-    { code: "tr", name: "Türkçe", en: "Turkish" },
-    { code: "it", name: "Italiano", en: "Italian" },
-    { code: "nl", name: "Nederlands", en: "Dutch" },
-    { code: "pl", name: "Polski", en: "Polish" },
-    { code: "sv", name: "Svenska", en: "Swedish" },
-    { code: "no", name: "Norsk", en: "Norwegian" },
-    { code: "da", name: "Dansk", en: "Danish" },
-    { code: "fi", name: "Suomi", en: "Finnish" },
-    { code: "el", name: "Ελληνικά", en: "Greek" },
-    { code: "cs", name: "Čeština", en: "Czech" },
-    { code: "hu", name: "Magyar", en: "Hungarian" },
-    { code: "ro", name: "Română", en: "Romanian" },
-    { code: "uk", name: "Українська", en: "Ukrainian" },
-    { code: "he", name: "עברית", en: "Hebrew", rtl: true },
-    { code: "fa", name: "فارسی", en: "Persian", rtl: true },
-    { code: "bn", name: "বাংলা", en: "Bengali" },
-    { code: "ur", name: "اردو", en: "Urdu", rtl: true },
-    { code: "ta", name: "தமிழ்", en: "Tamil" },
-    { code: "te", name: "తెలుగు", en: "Telugu" },
-    { code: "fil", name: "Filipino", en: "Filipino" },
-    { code: "sw", name: "Kiswahili", en: "Swahili" }
+    { code: "en", name: "English", en: "English (US)", country: "US" },
+    { code: "vi", name: "Tiếng Việt", en: "Vietnamese", country: "VN" },
+    { code: "zh", name: "中文", en: "Chinese", country: "CN" },
+    { code: "es", name: "Español", en: "Spanish", country: "ES" },
+    { code: "fr", name: "Français", en: "French", country: "FR" },
+    { code: "de", name: "Deutsch", en: "German", country: "DE" },
+    { code: "ja", name: "日本語", en: "Japanese", country: "JP" },
+    { code: "ko", name: "한국어", en: "Korean", country: "KR" },
+    { code: "pt", name: "Português", en: "Portuguese", country: "PT" },
+    { code: "ru", name: "Русский", en: "Russian", country: "RU" },
+    { code: "ar", name: "العربية", en: "Arabic", country: "SA", rtl: true },
+    { code: "hi", name: "हिन्दी", en: "Hindi", country: "IN" },
+    { code: "th", name: "ไทย", en: "Thai", country: "TH" },
+    { code: "id", name: "Bahasa Indonesia", en: "Indonesian", country: "ID" },
+    { code: "ms", name: "Bahasa Melayu", en: "Malay", country: "MY" },
+    { code: "tr", name: "Türkçe", en: "Turkish", country: "TR" },
+    { code: "it", name: "Italiano", en: "Italian", country: "IT" },
+    { code: "nl", name: "Nederlands", en: "Dutch", country: "NL" },
+    { code: "pl", name: "Polski", en: "Polish", country: "PL" },
+    { code: "sv", name: "Svenska", en: "Swedish", country: "SE" },
+    { code: "no", name: "Norsk", en: "Norwegian", country: "NO" },
+    { code: "da", name: "Dansk", en: "Danish", country: "DK" },
+    { code: "fi", name: "Suomi", en: "Finnish", country: "FI" },
+    { code: "el", name: "Ελληνικά", en: "Greek", country: "GR" },
+    { code: "cs", name: "Čeština", en: "Czech", country: "CZ" },
+    { code: "hu", name: "Magyar", en: "Hungarian", country: "HU" },
+    { code: "ro", name: "Română", en: "Romanian", country: "RO" },
+    { code: "uk", name: "Українська", en: "Ukrainian", country: "UA" },
+    { code: "he", name: "עברית", en: "Hebrew", country: "IL", rtl: true },
+    { code: "fa", name: "فارسی", en: "Persian", country: "IR", rtl: true },
+    { code: "bn", name: "বাংলা", en: "Bengali", country: "BD" },
+    { code: "ur", name: "اردو", en: "Urdu", country: "PK", rtl: true },
+    { code: "ta", name: "தமிழ்", en: "Tamil", country: "IN" },
+    { code: "te", name: "తెలుగు", en: "Telugu", country: "IN" },
+    { code: "fil", name: "Filipino", en: "Filipino", country: "PH" },
+    { code: "sw", name: "Kiswahili", en: "Swahili", country: "KE" }
   ];
+
+  function flagSvg(cc) {
+    var b = "";
+    switch (cc) {
+      case "US": b = '<rect width="24" height="16" fill="#B22234"/><path d="M0 2.5h24M0 5h24M0 7.5h24M0 10h24M0 12.5h24M0 15h24" stroke="#fff" stroke-width="1.2"/><rect width="10.5" height="8.8" fill="#3C3B6E"/><circle cx="2.5" cy="2.5" r=".7" fill="#fff"/><circle cx="5.2" cy="2.5" r=".7" fill="#fff"/><circle cx="8" cy="2.5" r=".7" fill="#fff"/><circle cx="3.8" cy="4.5" r=".7" fill="#fff"/><circle cx="6.6" cy="4.5" r=".7" fill="#fff"/><circle cx="2.5" cy="6.5" r=".7" fill="#fff"/><circle cx="5.2" cy="6.5" r=".7" fill="#fff"/><circle cx="8" cy="6.5" r=".7" fill="#fff"/>'; break;
+      case "VN": b = '<rect width="24" height="16" fill="#DA251D"/><polygon points="12,3.2 13.3,6.9 17.2,6.9 14.1,9.1 15.2,12.8 12,10.6 8.8,12.8 9.9,9.1 6.8,6.9 10.7,6.9" fill="#FFCD00"/>'; break;
+      case "CN": b = '<rect width="24" height="16" fill="#EE1C25"/><polygon points="5,2.2 5.8,4.6 8.3,4.6 6.3,6 7,8.4 5,7 3,8.4 3.7,6 1.7,4.6 4.2,4.6" fill="#FFFF00"/><circle cx="10" cy="2.2" r=".7" fill="#FFFF00"/><circle cx="11.4" cy="3.8" r=".7" fill="#FFFF00"/><circle cx="11.4" cy="6" r=".7" fill="#FFFF00"/><circle cx="10" cy="7.6" r=".7" fill="#FFFF00"/>'; break;
+      case "ES": b = '<rect width="24" height="16" fill="#AA151B"/><rect y="4" width="24" height="8" fill="#F1BF00"/><circle cx="7.5" cy="8" r="1.8" fill="#AA151B"/>'; break;
+      case "FR": b = '<rect width="8" height="16" fill="#002395"/><rect x="8" width="8" height="16" fill="#fff"/><rect x="16" width="8" height="16" fill="#ED2939"/>'; break;
+      case "DE": b = '<rect width="24" height="5.4" fill="#000"/><rect y="5.3" width="24" height="5.4" fill="#DD0000"/><rect y="10.6" width="24" height="5.4" fill="#FFCE00"/>'; break;
+      case "JP": b = '<rect width="24" height="16" fill="#fff"/><circle cx="12" cy="8" r="4.6" fill="#BC002D"/>'; break;
+      case "KR": b = '<rect width="24" height="16" fill="#fff"/><path d="M8,8a4,4 0 0,1 8,0Z" fill="#CD2E3A"/><path d="M8,8a4,4 0 0,0 8,0Z" fill="#0047A0"/>'; break;
+      case "PT": b = '<rect width="9.6" height="16" fill="#006600"/><rect x="9.6" width="14.4" height="16" fill="#FF0000"/><circle cx="9.6" cy="8" r="3" fill="#FFCC00"/><circle cx="9.6" cy="8" r="1.7" fill="#fff"/>'; break;
+      case "RU": b = '<rect width="24" height="5.4" fill="#fff"/><rect y="5.3" width="24" height="5.4" fill="#0039A6"/><rect y="10.6" width="24" height="5.4" fill="#D52B1E"/>'; break;
+      case "SA": b = '<rect width="24" height="16" fill="#006C35"/><rect x="5" y="5" width="14" height="2.6" rx="1" fill="#fff"/><rect x="6.5" y="9.8" width="11" height="1.2" fill="#fff"/>'; break;
+      case "IN": b = '<rect width="24" height="5.4" fill="#FF9933"/><rect y="5.3" width="24" height="5.4" fill="#fff"/><rect y="10.6" width="24" height="5.4" fill="#138808"/><circle cx="12" cy="8" r="2" fill="#000080"/>'; break;
+      case "TH": b = '<rect width="24" height="16" fill="#A51931"/><rect y="2.7" width="24" height="10.6" fill="#fff"/><rect y="5.3" width="24" height="5.4" fill="#2D2A4A"/>'; break;
+      case "ID": b = '<rect width="24" height="8" fill="#FF0000"/><rect y="8" width="24" height="8" fill="#fff"/>'; break;
+      case "MY": b = '<rect width="24" height="16" fill="#CC0001"/><path d="M0 2.3h24M0 4.6h24M0 6.9h24M0 9.2h24M0 11.5h24M0 13.8h24" stroke="#fff" stroke-width="1.1"/><rect width="12" height="9" fill="#010066"/><circle cx="5.2" cy="4.5" r="2.6" fill="#FFCC00"/><circle cx="6" cy="4.5" r="2.1" fill="#010066"/><circle cx="8.2" cy="4.5" r="1.2" fill="#FFCC00"/>'; break;
+      case "TR": b = '<rect width="24" height="16" fill="#E30A17"/><circle cx="10" cy="8" r="3.8" fill="#fff"/><circle cx="11.1" cy="8" r="3" fill="#E30A17"/><circle cx="14.2" cy="8" r="1.4" fill="#fff"/>'; break;
+      case "IT": b = '<rect width="8" height="16" fill="#009246"/><rect x="8" width="8" height="16" fill="#fff"/><rect x="16" width="8" height="16" fill="#CE2B37"/>'; break;
+      case "NL": b = '<rect width="24" height="5.4" fill="#AE1C28"/><rect y="5.3" width="24" height="5.4" fill="#fff"/><rect y="10.6" width="24" height="5.4" fill="#21468B"/>'; break;
+      case "PL": b = '<rect width="24" height="8" fill="#fff"/><rect y="8" width="24" height="8" fill="#DC143C"/>'; break;
+      case "SE": b = '<rect width="24" height="16" fill="#006AA7"/><rect x="7" width="2.8" height="16" fill="#FECC02"/><rect y="6.6" width="24" height="2.8" fill="#FECC02"/>'; break;
+      case "NO": b = '<rect width="24" height="16" fill="#BA0C2F"/><rect x="6.4" width="4.2" height="16" fill="#fff"/><rect y="5.9" width="24" height="4.2" fill="#fff"/><rect x="7.3" width="2.4" height="16" fill="#00205B"/><rect y="6.8" width="24" height="2.4" fill="#00205B"/>'; break;
+      case "DK": b = '<rect width="24" height="16" fill="#C8102E"/><rect x="7" width="2.6" height="16" fill="#fff"/><rect y="6.7" width="24" height="2.6" fill="#fff"/>'; break;
+      case "FI": b = '<rect width="24" height="16" fill="#fff"/><rect x="7" width="2.8" height="16" fill="#003580"/><rect y="6.6" width="24" height="2.8" fill="#003580"/>'; break;
+      case "GR": b = '<rect width="24" height="16" fill="#0D5EAF"/><path d="M0 2.7h24M0 6.2h24M0 9.8h24M0 13.3h24" stroke="#fff" stroke-width="1.7"/><rect width="9" height="9" fill="#0D5EAF"/><rect x="3.6" width="1.8" height="9" fill="#fff"/><rect y="3.6" width="9" height="1.8" fill="#fff"/>'; break;
+      case "CZ": b = '<rect width="24" height="8" fill="#fff"/><rect y="8" width="24" height="8" fill="#D7141A"/><polygon points="0,0 11.5,8 0,16" fill="#11457E"/>'; break;
+      case "HU": b = '<rect width="24" height="5.4" fill="#CE2939"/><rect y="5.3" width="24" height="5.4" fill="#fff"/><rect y="10.6" width="24" height="5.4" fill="#477050"/>'; break;
+      case "RO": b = '<rect width="8" height="16" fill="#002B7F"/><rect x="8" width="8" height="16" fill="#FCD116"/><rect x="16" width="8" height="16" fill="#CE1126"/>'; break;
+      case "UA": b = '<rect width="24" height="8" fill="#0057B7"/><rect y="8" width="24" height="8" fill="#FFD700"/>'; break;
+      case "IL": b = '<rect width="24" height="16" fill="#fff"/><rect y="2" width="24" height="2.4" fill="#0038B8"/><rect y="11.6" width="24" height="2.4" fill="#0038B8"/><polygon points="12,5 14.6,9.5 9.4,9.5" fill="none" stroke="#0038B8" stroke-width="1.1"/><polygon points="12,11 14.6,6.5 9.4,6.5" fill="none" stroke="#0038B8" stroke-width="1.1"/>'; break;
+      case "IR": b = '<rect width="24" height="5.4" fill="#239F40"/><rect y="5.3" width="24" height="5.4" fill="#fff"/><rect y="10.6" width="24" height="5.4" fill="#DA0000"/><circle cx="12" cy="8" r="1.8" fill="#DA0000"/>'; break;
+      case "BD": b = '<rect width="24" height="16" fill="#006A4E"/><circle cx="10.8" cy="8" r="4.2" fill="#F42A41"/>'; break;
+      case "PK": b = '<rect width="24" height="16" fill="#01411C"/><rect width="6" height="16" fill="#fff"/><circle cx="14" cy="8" r="3.6" fill="#fff"/><circle cx="15" cy="7.2" r="3" fill="#01411C"/><circle cx="16.8" cy="6.2" r="1.2" fill="#fff"/>'; break;
+      case "PH": b = '<rect width="24" height="8" fill="#0038A8"/><rect y="8" width="24" height="8" fill="#CE1126"/><polygon points="0,0 11,8 0,16" fill="#fff"/><circle cx="3.8" cy="8" r="1.8" fill="#FCD116"/>'; break;
+      case "KE": b = '<rect width="24" height="16" fill="#fff"/><rect width="24" height="4.6" fill="#000"/><rect y="5.7" width="24" height="4.6" fill="#BB0000"/><rect y="11.4" width="24" height="4.6" fill="#006600"/><ellipse cx="12" cy="8" rx="2.4" ry="3.8" fill="#BB0000" stroke="#fff" stroke-width=".6"/>'; break;
+      default: b = '<rect width="24" height="16" fill="#2D6A4F"/>';
+    }
+    return '<svg class="lang-flag" viewBox="0 0 24 16" aria-hidden="true">' + b + "</svg>";
+  }
 
   var BY_CODE = {};
   for (var i = 0; i < LANGS.length; i++) BY_CODE[LANGS[i].code] = LANGS[i];
 
   var STORE_KEY = "evernear_site_lang";
+  var APP_LOCALE_KEY = "evernear_app_locale";
   var DICT_PREFIX = "evernear_i18n_dict_v2_";
   var cache = {};
   var baseStrings = null;
@@ -355,6 +398,9 @@
     var labels = document.querySelectorAll("[data-lang-name]");
     for (var m = 0; m < labels.length; m++) labels[m].textContent = meta.name;
 
+    var flags = document.querySelectorAll("[data-lang-flag]");
+    for (var f = 0; f < flags.length; f++) flags[f].innerHTML = flagSvg(meta.country);
+
     var opts = document.querySelectorAll(".lang-opt");
     for (var n = 0; n < opts.length; n++) {
       opts[n].classList.toggle("active", opts[n].getAttribute("data-code") === meta.code);
@@ -388,7 +434,13 @@
     if (!BY_CODE[code]) code = "en";
     snapshotBase();
     if (save) {
-      try { localStorage.setItem(STORE_KEY, code); } catch (_) {}
+      var appCode = code === "fil" ? "tl" : code;
+      try {
+        localStorage.setItem(STORE_KEY, code);
+        localStorage.setItem("flutter." + STORE_KEY, JSON.stringify(code));
+        localStorage.setItem(APP_LOCALE_KEY, appCode);
+        localStorage.setItem("flutter." + APP_LOCALE_KEY, JSON.stringify(appCode));
+      } catch (_) {}
       try {
         var u = new URL(location.href);
         if (code === "en") u.searchParams.delete("lang");
@@ -404,7 +456,8 @@
       paint(code, cache[code]);
       return;
     }
-    fetch("/i18n/" + code + ".json", { cache: "force-cache" })
+    var i18nPrefix = document.querySelector('script[src*="/site/evernear.js"]') ? "/site/i18n/" : "/i18n/";
+    fetch(i18nPrefix + code + ".json", { cache: "force-cache" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (d) {
@@ -418,7 +471,9 @@
 
   function normTag(tag) {
     if (!tag) return "";
-    var t = String(tag).toLowerCase().split(/[-_]/)[0];
+    var cleaned = String(tag).replace(/^["']+|["']+$/g, "").trim();
+    if (!cleaned || cleaned === "auto") return "";
+    var t = cleaned.toLowerCase().split(/[-_]/)[0];
     if (t === "tl") return "fil";
     if (t === "iw") return "he";
     if (t === "in") return "id";
@@ -428,12 +483,31 @@
 
   function detectInitial() {
     try {
+      var mig = localStorage.getItem("evernear_en_us_default_v2") ||
+                localStorage.getItem("flutter.evernear_en_us_default_v2");
+      if (mig !== "true") {
+        localStorage.setItem("evernear_en_us_default_v2", "true");
+        localStorage.setItem("flutter.evernear_en_us_default_v2", "true");
+        localStorage.removeItem(STORE_KEY);
+        localStorage.removeItem("flutter." + STORE_KEY);
+        localStorage.removeItem(APP_LOCALE_KEY);
+        localStorage.removeItem("flutter." + APP_LOCALE_KEY);
+        localStorage.removeItem("carely_app_locale");
+        localStorage.removeItem("flutter.carely_app_locale");
+      }
+    } catch (_) {}
+    try {
       var q = new URLSearchParams(location.search).get("lang");
       var nq = normTag(q);
       if (nq && BY_CODE[nq]) return nq;
     } catch (_) {}
     try {
-      var saved = normTag(localStorage.getItem(STORE_KEY) || localStorage.getItem("flutter." + STORE_KEY));
+      var saved = normTag(
+        localStorage.getItem(STORE_KEY) ||
+        localStorage.getItem("flutter." + STORE_KEY) ||
+        localStorage.getItem(APP_LOCALE_KEY) ||
+        localStorage.getItem("flutter." + APP_LOCALE_KEY)
+      );
       if (saved && BY_CODE[saved]) return saved;
     } catch (_) {}
     return "en";
@@ -451,9 +525,7 @@
     btn.className = "lang-btn";
     btn.setAttribute("aria-label", "Language");
     btn.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-      '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>' +
-      "</svg>" +
+      '<span data-lang-flag class="lang-flag-wrap">' + flagSvg("US") + "</span>" +
       '<span data-lang-name>English</span>' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>';
 
@@ -476,8 +548,10 @@
       o.type = "button";
       o.className = "lang-opt" + (L.code === current ? " active" : "");
       o.setAttribute("data-code", L.code);
-      o.setAttribute("data-q", (L.name + " " + L.en + " " + L.code).toLowerCase());
-      o.innerHTML = "<b>" + L.name + "</b><small>" + L.en + "</small>";
+      o.setAttribute("data-q", (L.name + " " + L.en + " " + L.code + " " + L.country).toLowerCase());
+      o.innerHTML =
+        '<span class="lang-flag-wrap">' + flagSvg(L.country) + "</span>" +
+        '<span class="lang-opt-text"><b>' + L.name + "</b><small>" + L.en + "</small></span>";
       grid.appendChild(o);
     }
 

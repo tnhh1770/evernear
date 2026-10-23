@@ -69,6 +69,17 @@ class AppLocalizations {
 
   static bool _hasVietnamese(String text) => _vietnameseDiacritics.hasMatch(text);
 
+  static const Map<String, String> _supplementalEn = {
+    'account_not_updated': 'Not updated',
+    'auth_name_required': 'Please enter your full name.',
+    'guardian_check_in_required': 'Check-in required now',
+    'monitoring_reminder_preset_2': '2 times (08:00, 20:00)',
+    'monitoring_reminder_preset_3': '3 times (09:00, 15:00, 20:00)',
+    'monitoring_reminder_preset_4': '4 times (08:00, 12:00, 16:00, 20:00)',
+    'relative_detail_copy_phone_tooltip': 'Copy phone number',
+    'relative_detail_phone_copied': 'Copied phone number {phone}',
+  };
+
   /// Primary translation resolver
   ///
   /// Resolution Chain:
@@ -93,7 +104,7 @@ class AppLocalizations {
           (isEnglish && fallback != null && !_hasVietnamese(fallback))
               ? fallback
               : null;
-      value ??= enCatalog[key] ?? safeFallback;
+      value ??= enCatalog[key] ?? _supplementalEn[key] ?? safeFallback;
     }
 
     value ??= formatKeyName(key);
@@ -128,7 +139,7 @@ class AppLocalizations {
           (isEnglish && fallback != null && !_hasVietnamese(fallback))
               ? fallback
               : null;
-      value ??= enCatalog[key] ?? safeFallback;
+      value ??= enCatalog[key] ?? _supplementalEn[key] ?? safeFallback;
     }
 
     value ??= formatKeyName(key);

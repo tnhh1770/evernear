@@ -311,20 +311,21 @@ void main() {
       expect(authProvider.currentUser?.preferredLanguage, 'en');
     });
 
-    testWidgets('Flow (c) Alternate: When user is on device auto, syncs from backend profile', (tester) async {
+    testWidgets('Flow (c) Alternate: When user is on default (English US), login preserves English US and does not switch to server language', (tester) async {
       final localeProvider = LocaleProvider();
       await localeProvider.initialize();
-      // User is on device default (isDeviceDefault == true)
+      // User has not changed language (isDeviceDefault == true, 'en')
       expect(localeProvider.isDeviceDefault, isTrue);
+      expect(localeProvider.currentLanguageCode, 'en');
 
       final authProvider = TrackingAuthProvider(
         initialUser: UserModel(
-          id: 'server-user-fr',
-          email: 'french@example.com',
-          fullName: 'French User',
+          id: 'server-user-vi',
+          email: 'viet@example.com',
+          fullName: 'Viet User',
           timezone: 'Asia/Ho_Chi_Minh',
           isActive: true,
-          preferredLanguage: 'fr',
+          preferredLanguage: 'vi',
           createdAt: DateTime(2025, 1, 1),
         ),
       );
@@ -338,13 +339,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextFormField).at(0), 'french@example.com');
+      await tester.enterText(find.byType(TextFormField).at(0), 'viet@example.com');
       await tester.enterText(find.byType(TextFormField).at(1), 'Secret123!');
       await tester.tap(find.byType(ElevatedButton));
       await tester.pumpAndSettle();
 
-      // Since user did NOT choose an explicit locale, syncs from server profile ('fr')
-      expect(localeProvider.currentLanguageCode, 'fr');
+      // Must remain in default US English ('en') and update profile to 'en'
+      expect(localeProvider.currentLanguageCode, 'en');
+      expect(authProvider.currentUser?.preferredLanguage, 'en');
     });
 
     testWidgets('Flow (d): Settings language change updates AuthProvider & LocalStorage, survives logout', (tester) async {

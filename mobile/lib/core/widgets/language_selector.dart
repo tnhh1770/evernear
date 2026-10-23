@@ -4,10 +4,11 @@ import '../constants/app_colors.dart';
 import '../i18n/locale_catalog_registry.dart';
 import '../i18n/locale_provider.dart';
 import '../../features/auth/auth_provider.dart';
+import 'country_flag_badge.dart';
 
 /// Reusable LanguageSelector component for pre-auth and post-auth screens.
 /// Features a compact pill-shaped dropdown displaying the current language's
-/// flag emoji and 2-letter uppercase ISO code, opening a clean menu of all
+/// national flag and 2-letter uppercase ISO code, opening a clean menu of all
 /// supported world languages.
 class LanguageSelector extends StatelessWidget {
   final Key? dropdownKey;
@@ -75,8 +76,13 @@ class LanguageSelector extends StatelessWidget {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(lang.flagEmoji, style: const TextStyle(fontSize: 16)),
-                    const SizedBox(width: 4),
+                    CountryFlagBadge(
+                      countryCode: lang.countryCode,
+                      width: 20,
+                      height: 14,
+                      borderRadius: 3,
+                    ),
+                    const SizedBox(width: 5),
                     Text(
                       lang.code.toUpperCase(),
                       style: const TextStyle(
@@ -95,7 +101,12 @@ class LanguageSelector extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(lang.flagEmoji, style: const TextStyle(fontSize: 16)),
+                    CountryFlagBadge(
+                      countryCode: lang.countryCode,
+                      width: 22,
+                      height: 15,
+                      borderRadius: 3,
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(

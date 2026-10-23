@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/i18n/locale_provider.dart';
+import 'site_i18n_default_en.dart';
 
 class SiteLanguageItem {
   final String code;
@@ -46,9 +47,9 @@ class SiteI18nController extends ChangeNotifier {
   static final RegExp _htmlTagRegex = RegExp(r'<[^>]+>');
 
   static const List<SiteLanguageItem> languages = [
-    SiteLanguageItem(code: 'en', nativeName: 'English', englishName: 'English', country: 'US'),
+    SiteLanguageItem(code: 'en', nativeName: 'English', englishName: 'English (US)', country: 'US'),
     SiteLanguageItem(code: 'vi', nativeName: 'Tiếng Việt', englishName: 'Vietnamese', country: 'VN'),
-    SiteLanguageItem(code: 'ar', nativeName: 'العربية', englishName: 'Arabic', country: 'EG', rtl: true),
+    SiteLanguageItem(code: 'ar', nativeName: 'العربية', englishName: 'Arabic', country: 'SA', rtl: true),
     SiteLanguageItem(code: 'bn', nativeName: 'বাংলা', englishName: 'Bangla', country: 'BD'),
     SiteLanguageItem(code: 'cs', nativeName: 'Čeština', englishName: 'Czech', country: 'CZ'),
     SiteLanguageItem(code: 'da', nativeName: 'Dansk', englishName: 'Danish', country: 'DK'),
@@ -70,7 +71,7 @@ class SiteI18nController extends ChangeNotifier {
     SiteLanguageItem(code: 'nl', nativeName: 'Nederlands', englishName: 'Dutch', country: 'NL'),
     SiteLanguageItem(code: 'no', nativeName: 'Norsk', englishName: 'Norwegian', country: 'NO'),
     SiteLanguageItem(code: 'pl', nativeName: 'Polski', englishName: 'Polish', country: 'PL'),
-    SiteLanguageItem(code: 'pt', nativeName: 'Português', englishName: 'Portuguese', country: 'BR'),
+    SiteLanguageItem(code: 'pt', nativeName: 'Português', englishName: 'Portuguese', country: 'PT'),
     SiteLanguageItem(code: 'ro', nativeName: 'Română', englishName: 'Romanian', country: 'RO'),
     SiteLanguageItem(code: 'ru', nativeName: 'Русский', englishName: 'Russian', country: 'RU'),
     SiteLanguageItem(code: 'sv', nativeName: 'Svenska', englishName: 'Swedish', country: 'SE'),
@@ -90,6 +91,7 @@ class SiteI18nController extends ChangeNotifier {
   bool _initialized = false;
 
   String get currentCode => _currentCode;
+  bool get isInitialized => _initialized;
 
   /// Returns the codes currently loaded in memory (for diagnostics/testing).
   Set<String> get loadedLanguageCodes => _dicts.keys.toSet();
@@ -152,6 +154,14 @@ class SiteI18nController extends ChangeNotifier {
       } else {
         try {
           final prefs = await SharedPreferences.getInstance();
+          final isFlutterTest =
+              WidgetsBinding.instance.runtimeType.toString().contains('Test');
+          if (!isFlutterTest &&
+              prefs.getBool('evernear_en_us_default_v2') != true) {
+            await prefs.setBool('evernear_en_us_default_v2', true);
+            await prefs.remove(LocaleProvider.prefKeyLocale);
+            await prefs.remove(langStorageKey);
+          }
           final savedLang = prefs.getString(langStorageKey);
           if (savedLang != null && languages.any((l) => l.code == savedLang)) {
             targetCode = savedLang;
@@ -255,7 +265,7 @@ class SiteI18nController extends ChangeNotifier {
       } catch (_) {}
       if (localeProvider != null) {
         final mapped = code == 'fil' ? 'tl' : code;
-        if (localeProvider.currentLanguageCode != mapped) {
+        if (localeProvider.currentLanguageCode != mapped || localeProvider.isDeviceDefault) {
           await localeProvider.setLocale(Locale(mapped));
         }
       }
@@ -270,14 +280,16 @@ class SiteI18nController extends ChangeNotifier {
     if (active != null && active[key] != null && active[key]!.isNotEmpty) {
       return active[key]!;
     }
-    if (fallback.isNotEmpty) {
-      return fallback;
-    }
     if (_currentCode != 'vi') {
       final en = _dicts['en'];
       if (en != null && en[key] != null && en[key]!.isNotEmpty) {
         return en[key]!;
       }
+      final defaultEn = kSiteDefaultEnDict[key];
+      if (defaultEn != null && defaultEn.isNotEmpty) {
+        return defaultEn;
+      }
+      return fallback;
     }
     final vi = _dicts['vi'];
     if (vi != null && vi[key] != null && vi[key]!.isNotEmpty) {

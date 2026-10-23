@@ -3,7 +3,7 @@
   "code": "ar",
   "native": "العربية",
   "english": "Arabic",
-  "country": "EG",
+  "country": "SA",
   "rtl": true
  },
  {
@@ -39,7 +39,7 @@
  {
   "code": "en",
   "native": "English",
-  "english": "English",
+  "english": "English (US)",
   "country": "US"
  },
  {
@@ -144,7 +144,7 @@
   "code": "pt",
   "native": "Português",
   "english": "Portuguese",
-  "country": "BR"
+  "country": "PT"
  },
  {
   "code": "ro",
@@ -168,7 +168,7 @@
   "code": "sw",
   "native": "Kiswahili",
   "english": "Swahili",
-  "country": "TZ"
+  "country": "KE"
  },
  {
   "code": "ta",

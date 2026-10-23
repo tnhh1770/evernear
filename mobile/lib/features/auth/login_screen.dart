@@ -52,21 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
         final activeLang = localeProvider.currentLanguageCode;
         final serverLang = auth.currentUser?.preferredLanguage;
 
-        if (localeProvider.isDeviceDefault) {
-          // If user has not chosen an explicit language, sync from backend profile
-          if (serverLang != null && serverLang.isNotEmpty) {
-            try {
-              await localeProvider.syncFromUserProfile(serverLang);
-            } catch (_) {}
-          }
-        } else {
-          // Client chosen locale is authoritative!
-          if (serverLang != activeLang) {
-            auth.updateUserPreferredLanguage(activeLang);
-            try {
-              await localeProvider.syncCurrentLocaleToUser(auth);
-            } catch (_) {}
-          }
+        // Always keep the client language (defaults to US English 'en' until
+        // explicitly changed by the user) and sync it to the user profile.
+        if (serverLang != activeLang) {
+          auth.updateUserPreferredLanguage(activeLang);
+          try {
+            await localeProvider.syncCurrentLocaleToUser(auth);
+          } catch (_) {}
         }
       }
 

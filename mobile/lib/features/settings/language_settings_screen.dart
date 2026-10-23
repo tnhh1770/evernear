@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/locale_catalog_registry.dart';
 import '../../core/i18n/locale_provider.dart';
+import '../../core/widgets/country_flag_badge.dart';
 import '../auth/auth_provider.dart';
 
 /// Screen 5.3 — Ngôn ngữ
@@ -48,7 +49,12 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
       SnackBar(
         content: Row(
           children: [
-            Text(lang.flagEmoji, style: const TextStyle(fontSize: 18)),
+            CountryFlagBadge(
+              countryCode: lang.countryCode,
+              width: 24,
+              height: 16,
+              borderRadius: 4,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -465,6 +471,8 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
     bool showDivider = true,
     required VoidCallback onTap,
   }) {
+    final countryCode = LocaleCatalogRegistry.getByCode(code)?.countryCode ??
+        CountryFlagBadge.countryForLanguage(code);
     return Column(
       children: [
         InkWell(
@@ -475,22 +483,18 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
             child: Row(
               children: [
                 Container(
-                  width: 28,
-                  height: 28,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryLight : AppColors.inputFill,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.textPrimary,
-                      width: 1.5,
-                    ),
                   ),
                   alignment: Alignment.center,
-                  child: Icon(
-                    code == 'en'
-                        ? Icons.star_outline_rounded
-                        : Icons.language_rounded,
-                    size: 16,
-                    color: AppColors.textPrimary,
+                  child: CountryFlagBadge(
+                    countryCode: countryCode,
+                    width: 24,
+                    height: 16,
+                    borderRadius: 3.5,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -570,7 +574,12 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
             color: isSelected ? AppColors.primaryLight : AppColors.inputFill,
             shape: BoxShape.circle,
           ),
-          child: Text(lang.flagEmoji, style: const TextStyle(fontSize: 20)),
+          child: CountryFlagBadge(
+            countryCode: lang.countryCode,
+            width: 24,
+            height: 16,
+            borderRadius: 3.5,
+          ),
         ),
         title: Row(
           children: [
