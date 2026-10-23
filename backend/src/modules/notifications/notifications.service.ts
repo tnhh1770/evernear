@@ -54,7 +54,7 @@ export class NotificationsService {
       recipientUser = await this.userRepo.findOne({
         where: { id: params.recipientUserId },
       });
-      lang = recipientUser?.preferredLanguage || 'vi';
+      lang = recipientUser?.preferredLanguage || 'en';
     }
 
     const rendered = this.templateService.render(

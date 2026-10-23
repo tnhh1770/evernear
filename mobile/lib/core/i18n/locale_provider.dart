@@ -13,7 +13,7 @@ class LocaleProvider with ChangeNotifier {
   static const String prefKeyLocale = 'evernear_app_locale';
   static const String _legacyPrefKeyLocale = 'carely_app_locale';
   static const String autoDetectValue = 'auto';
-  static const Locale defaultLocale = Locale('vi');
+  static const Locale defaultLocale = Locale('en');
 
   final ApiClient _apiClient = ApiClient();
 
@@ -33,11 +33,11 @@ class LocaleProvider with ChangeNotifier {
         LocaleCatalogRegistry.defaultLanguage;
   }
 
-  /// Returns display title for settings menu (e.g. "Tiếng Việt (Tự động)" or "English").
+  /// Returns display title for settings menu (e.g. "English (Auto)" or "Tiếng Việt").
   String get currentLanguageDisplayName {
     final lang = currentLanguage;
     if (_isDeviceDefault) {
-      final autoLabel = AppLocalizations.staticTr('common_auto', fallback: 'Tự động');
+      final autoLabel = AppLocalizations.staticTr('common_auto', fallback: 'Auto');
       return '${lang.nativeName} ($autoLabel)';
     }
     return lang.nativeName;
@@ -54,8 +54,8 @@ class LocaleProvider with ChangeNotifier {
 
   /// Initializes locale state on app startup.
   /// 1. Reads 'evernear_app_locale' (or legacy 'carely_app_locale') from SharedPreferences.
-  /// 2. If absent, empty, or 'auto', defaults to Vietnamese ('vi').
-  /// 3. If explicit language code, validates against catalog or falls back to 'vi'.
+  /// 2. If absent, empty, or 'auto', defaults to US English ('en').
+  /// 3. If explicit language code, validates against catalog or falls back to 'en'.
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -89,7 +89,7 @@ class LocaleProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Canonical default locale is always Vietnamese ('vi').
+  /// Canonical default locale is always US English ('en').
   Locale _detectDeviceLocale() {
     return defaultLocale;
   }
@@ -129,9 +129,8 @@ class LocaleProvider with ChangeNotifier {
   /// Switches back to auto-detecting system device language.
   Future<void> setDeviceLocale({AuthProvider? authProvider}) async {
     final detected = _detectDeviceLocale();
-    if (_isDeviceDefault && _currentLocale.languageCode == detected.languageCode) {
-      return; // Already auto and matched
-    }
+    final alreadyAuto =
+        _isDeviceDefault && _currentLocale.languageCode == detected.languageCode;
 
     _isDeviceDefault = true;
     _currentLocale = detected;
@@ -142,6 +141,10 @@ class LocaleProvider with ChangeNotifier {
       await prefs.setString(prefKeyLocale, autoDetectValue);
     } catch (e) {
       debugPrint('[LocaleProvider] Failed to persist auto locale: $e');
+    }
+
+    if (alreadyAuto) {
+      return;
     }
 
     _syncWithBackend(_currentLocale.languageCode, authProvider: authProvider);

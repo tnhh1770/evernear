@@ -125,8 +125,8 @@ class DynamicCatalogs {
 
   /// 14 Tier-1 pre-bundled languages with full key parity
   static const Map<String, Map<String, String>> _catalogs = {
-    'vi': viCatalog,
     'en': enCatalog,
+    'vi': viCatalog,
     'fr': frCatalog,
     'de': deCatalog,
     'es': esCatalog,

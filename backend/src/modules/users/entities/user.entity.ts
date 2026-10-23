@@ -33,7 +33,7 @@ export class User {
   @Column({ default: 'Asia/Ho_Chi_Minh' })
   timezone: string;
 
-  @Column({ name: 'preferred_language', default: 'vi' })
+  @Column({ name: 'preferred_language', default: 'en' })
   preferredLanguage: string;
 
   @Column({ type: 'varchar', length: 255, name: 'google_id', nullable: true })

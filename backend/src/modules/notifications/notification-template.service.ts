@@ -1951,9 +1951,9 @@ export class NotificationTemplateService {
   render(
     templateName: string,
     params: Record<string, string> = {},
-    locale = 'vi',
+    locale = 'en',
   ): RenderedTemplate {
-    const normalizedLocale = (locale || 'vi').toLowerCase().split(/[-_]/)[0];
+    const normalizedLocale = (locale || 'en').toLowerCase().split(/[-_]/)[0];
 
     // Tier 1: Look up in requested locale catalog
     let entry: TemplateEntry | undefined =
@@ -1978,11 +1978,11 @@ export class NotificationTemplateService {
         TEMPLATE_DICTIONARIES[normalizedLocale]?.default ||
         TEMPLATE_DICTIONARIES['en']?.default ||
         TEMPLATE_DICTIONARIES['vi'].default;
-      resolvedLang = TEMPLATE_DICTIONARIES[normalizedLocale]?.default ? normalizedLocale : 'vi';
+      resolvedLang = TEMPLATE_DICTIONARIES[normalizedLocale]?.default ? normalizedLocale : 'en';
     }
 
     // Parameter substitution ({name} and legacy ${name})
-    const defaultName = DEFAULT_NAMES[resolvedLang] || DEFAULT_NAMES['vi'];
+    const defaultName = DEFAULT_NAMES[resolvedLang] || DEFAULT_NAMES['en'];
     const mergedParams: Record<string, string> = {
       name: defaultName,
       ...params,

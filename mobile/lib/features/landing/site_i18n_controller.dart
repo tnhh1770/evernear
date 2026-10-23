@@ -46,8 +46,8 @@ class SiteI18nController extends ChangeNotifier {
   static final RegExp _htmlTagRegex = RegExp(r'<[^>]+>');
 
   static const List<SiteLanguageItem> languages = [
-    SiteLanguageItem(code: 'vi', nativeName: 'Tiếng Việt', englishName: 'Vietnamese', country: 'VN'),
     SiteLanguageItem(code: 'en', nativeName: 'English', englishName: 'English', country: 'US'),
+    SiteLanguageItem(code: 'vi', nativeName: 'Tiếng Việt', englishName: 'Vietnamese', country: 'VN'),
     SiteLanguageItem(code: 'ar', nativeName: 'العربية', englishName: 'Arabic', country: 'EG', rtl: true),
     SiteLanguageItem(code: 'bn', nativeName: 'বাংলা', englishName: 'Bangla', country: 'BD'),
     SiteLanguageItem(code: 'cs', nativeName: 'Čeština', englishName: 'Czech', country: 'CZ'),
@@ -86,7 +86,7 @@ class SiteI18nController extends ChangeNotifier {
 
   final Map<String, Map<String, String>> _dicts = {};
   final Dio _dio = Dio();
-  String _currentCode = 'vi';
+  String _currentCode = 'en';
   bool _initialized = false;
 
   String get currentCode => _currentCode;
@@ -98,7 +98,7 @@ class SiteI18nController extends ChangeNotifier {
   @visibleForTesting
   void clearMemoryCache() {
     _dicts.clear();
-    _currentCode = 'vi';
+    _currentCode = 'en';
     _initialized = false;
   }
 
@@ -171,9 +171,9 @@ class SiteI18nController extends ChangeNotifier {
       return;
     }
     if (localeProvider.isDeviceDefault) {
-      if (_currentCode != 'vi') {
-        _currentCode = 'vi';
-        await _loadDict('vi');
+      if (_currentCode != 'en') {
+        _currentCode = 'en';
+        await _loadDict('en');
         notifyListeners();
       }
       return;

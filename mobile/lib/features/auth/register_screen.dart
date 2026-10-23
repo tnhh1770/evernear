@@ -46,7 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (_) {}
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final activeLang = localeProvider?.currentLanguageCode ?? 'vi';
+    final activeLang = localeProvider?.currentLanguageCode ?? 'en';
 
     final success = await auth.register(
       fullName: _nameController.text,

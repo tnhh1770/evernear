@@ -7,10 +7,10 @@ import {
 describe('NotificationTemplateService (i18n & Safe Fallback)', () => {
   const service = new NotificationTemplateService();
 
-  it('1. should render default Vietnamese templates when locale is omitted (backwards compatibility)', () => {
+  it('1. should render default English templates when locale is omitted', () => {
     const res = service.render('CHECK_IN_PROMPT');
-    expect(res.title).toBe('Evernear — Bạn vẫn ổn chứ?');
-    expect(res.body).toContain('Hệ thống chưa nhận thấy hoạt động mới');
+    expect(res.title).toBe('Evernear — Are you doing okay?');
+    expect(res.body).toContain('No recent activity was detected');
   });
 
   it('2. should interpolate default name when name param is omitted', () => {

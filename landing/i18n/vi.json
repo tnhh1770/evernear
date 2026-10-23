@@ -450,7 +450,11 @@
   "step2.badge": "Bước 02",
   "step3.badge": "Bước 03",
   "stat1.val": "1 chạm",
+  "stat2.val": "0.2–0.8",
   "stat4.val": "48h",
+  "i017": "Tín hiệu sinh hoạt thụ động tự động",
+  "i024": "Ghi nhận tín hiệu sinh hoạt thụ động",
+  "i025": "Tự động ghi nhận mở khoá màn hình, cắm sạc pin và chuyển động bước chân (trọng số 0.2–0.8) giúp gia đình an tâm mà không làm phiền người lớn tuổi.",
   "ui.lang.label": "Ngôn ngữ · 36",
   "ui.lang.search": "Tìm ngôn ngữ..."
 }

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone_number VARCHAR(50),
     avatar_url TEXT,
     timezone VARCHAR(100) DEFAULT 'Asia/Ho_Chi_Minh' NOT NULL,
-    preferred_language VARCHAR(10) DEFAULT 'vi' NOT NULL,
+    preferred_language VARCHAR(10) DEFAULT 'en' NOT NULL,
     google_id VARCHAR(255),
     apple_id VARCHAR(255),
     auth_provider VARCHAR(50) DEFAULT 'LOCAL' NOT NULL,

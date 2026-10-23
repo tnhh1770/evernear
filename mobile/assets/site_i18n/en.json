@@ -448,7 +448,11 @@
   "step2.badge": "Step 02",
   "step3.badge": "Step 03",
   "stat1.val": "1 tap",
+  "stat2.val": "0.2–0.8",
   "stat4.val": "48h",
+  "i017": "Passive daily activity sensing",
+  "i024": "Passive Daily Activity Sensing",
+  "i025": "Automatically records screen unlocks, charging events, and step movements (weight 0.2–0.8) to give families peace of mind without disturbing older adults.",
   "ui.lang.label": "Languages · 36",
   "ui.lang.search": "Search language..."
 }

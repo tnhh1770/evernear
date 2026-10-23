@@ -65,7 +65,7 @@ export class AuthService {
       displayName: dto.displayName.trim(),
       phoneNumber: dto.phoneNumber?.trim() || null as any,
       timezone: dto.timezone || 'Asia/Ho_Chi_Minh',
-      preferredLanguage: dto.preferredLanguage?.trim().toLowerCase() || 'vi',
+      preferredLanguage: dto.preferredLanguage?.trim().toLowerCase() || 'en',
     });
 
     const saved = await this.userRepository.save(user);
@@ -201,7 +201,7 @@ export class AuthService {
       appleId: undefined,
       authProvider: AuthProvider.GOOGLE,
       timezone: 'Asia/Ho_Chi_Minh',
-      preferredLanguage: dto.preferredLanguage?.trim().toLowerCase() || 'vi',
+      preferredLanguage: dto.preferredLanguage?.trim().toLowerCase() || 'en',
     });
 
     const saved = await this.userRepository.save(user);
@@ -261,7 +261,7 @@ export class AuthService {
       appleId,
       authProvider: AuthProvider.APPLE,
       timezone: 'Asia/Ho_Chi_Minh',
-      preferredLanguage: dto.preferredLanguage?.trim().toLowerCase() || 'vi',
+      preferredLanguage: dto.preferredLanguage?.trim().toLowerCase() || 'en',
     });
 
     const saved = await this.userRepository.save(user);
@@ -339,7 +339,7 @@ export class AuthService {
       appleId: isApple ? (verified.appleId || providerId) : undefined,
       authProvider: providerEnum,
       timezone: 'Asia/Ho_Chi_Minh',
-      preferredLanguage: dto.preferredLanguage?.trim().toLowerCase() || 'vi',
+      preferredLanguage: dto.preferredLanguage?.trim().toLowerCase() || 'en',
     });
 
     const saved = await this.userRepository.save(user);

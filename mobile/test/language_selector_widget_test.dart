@@ -15,7 +15,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    AppLocalizations.globalLocaleCode = 'vi';
+    AppLocalizations.globalLocaleCode = 'en';
   });
 
   group('LanguageSelector Widget Tests', () {
@@ -46,7 +46,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('preauth_language_selector')), findsOneWidget);
-      expect(find.text('VI'), findsOneWidget);
+      expect(find.text('EN'), findsOneWidget);
     });
 
     testWidgets('Custom dropdownKey and onChanged callback function accurately', (tester) async {
@@ -108,7 +108,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(LanguageSelector), findsOneWidget);
-      expect(find.text('VI'), findsOneWidget);
+      expect(find.text('EN'), findsOneWidget);
     });
   });
 }

@@ -38,17 +38,17 @@ class LocaleCatalogRegistry {
   static const List<LanguageMetadata> allLanguages = [
     // --- Tier 1 Languages (Pre-bundled full catalogs) ---
     LanguageMetadata(
-      code: 'vi',
-      nativeName: 'Tiếng Việt',
-      englishName: 'Vietnamese',
-      flagEmoji: '🇻🇳',
-      isTier1: true,
-    ),
-    LanguageMetadata(
       code: 'en',
       nativeName: 'English',
       englishName: 'English',
       flagEmoji: '🇺🇸',
+      isTier1: true,
+    ),
+    LanguageMetadata(
+      code: 'vi',
+      nativeName: 'Tiếng Việt',
+      englishName: 'Vietnamese',
+      flagEmoji: '🇻🇳',
       isTier1: true,
     ),
     LanguageMetadata(
@@ -190,9 +190,9 @@ class LocaleCatalogRegistry {
   static List<LanguageMetadata> get tier1Languages =>
       allLanguages.where((l) => l.isTier1).toList(growable: false);
 
-  /// Canonical default language (Vietnamese)
+  /// Canonical default language (US English)
   static LanguageMetadata get defaultLanguage =>
-      getByCode('vi') ?? allLanguages.first;
+      getByCode('en') ?? allLanguages.first;
 
   /// Supported locales list for MaterialApp
   static List<Locale> get supportedLocales =>

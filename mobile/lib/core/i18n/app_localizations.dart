@@ -21,7 +21,7 @@ class AppLocalizations {
   }
 
   /// Canonical default global language code for static standalone lookups
-  static String globalLocaleCode = 'vi';
+  static String globalLocaleCode = 'en';
 
   /// In-memory cache preserving loaded translation catalogs so each language
   /// dictionary is loaded once and reused across all instances.
@@ -142,9 +142,9 @@ class AppLocalizations {
     return value!;
   }
 
-  /// Helper looking up Vietnamese canonical default
+  /// Helper looking up US English canonical default
   static String lookupDefault(String key) {
-    return viCatalog[key] ?? enCatalog[key] ?? formatKeyName(key);
+    return enCatalog[key] ?? viCatalog[key] ?? formatKeyName(key);
   }
 
   /// Transforms raw keys (e.g., 'check_in_button', 'auth.email.label')

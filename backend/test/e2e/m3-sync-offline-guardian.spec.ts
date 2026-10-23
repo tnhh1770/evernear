@@ -281,13 +281,13 @@ describe('Milestone 3: End-to-End System Synchronization (Live Sync, Offline Rep
       );
       expect(monitoredDeliveries.length).toBe(1);
       expect(monitoredDeliveries[0].template_name).toBe('CHECK_IN_PROMPT');
-      expect(monitoredDeliveries[0].payload.title).toContain('Evernear — Bạn vẫn ổn chứ?');
+      expect(monitoredDeliveries[0].payload.title).toContain('Evernear — Are you doing okay?');
       expect(monitoredDeliveries[0].payload.body).toContain(
-        'Hệ thống chưa nhận thấy hoạt động mới trong khung giờ quy định. Chạm để xác nhận bạn vẫn ổn.',
+        'We haven’t noticed recent activity during your scheduled window. Tap to confirm you are safe.',
       );
 
-      // Vietnamese Calm UX check: Zero prohibited panic keywords
-      const panicWords = ['chết', 'nguy kịch', 'hôn mê', 'cấp cứu'];
+      // Calm UX check: Zero prohibited panic keywords
+      const panicWords = ['chết', 'nguy kịch', 'hôn mê', 'cấp cứu', 'dead', 'coma', 'critical'];
       for (const word of panicWords) {
         expect(monitoredDeliveries[0].payload.title.toLowerCase()).not.toContain(word);
         expect(monitoredDeliveries[0].payload.body.toLowerCase()).not.toContain(word);
@@ -339,8 +339,8 @@ describe('Milestone 3: End-to-End System Synchronization (Live Sync, Offline Rep
         [monitorUser.id],
       );
       expect(guardianDeliveries.length).toBe(1);
-      expect(guardianDeliveries[0].payload.title).toContain('Evernear — Thông báo chăm sóc');
-      expect(guardianDeliveries[0].payload.body).toContain('Chưa ghi nhận hoạt động hoặc phản hồi');
+      expect(guardianDeliveries[0].payload.title).toContain('Evernear — Care Notice');
+      expect(guardianDeliveries[0].payload.body).toContain('No recent activity or check-in recorded');
     });
 
     it('2.3 Warning Timeout -> Autonomous Escalation to ESCALATED & Incident Status Update', async () => {
@@ -385,7 +385,7 @@ describe('Milestone 3: End-to-End System Synchronization (Live Sync, Offline Rep
         [monitorUser.id],
       );
       expect(escDeliveries.length).toBe(1);
-      expect(escDeliveries[0].payload.title).toContain('Evernear — Cần lưu ý');
+      expect(escDeliveries[0].payload.title).toContain('Evernear — Attention Needed');
     });
   });
 

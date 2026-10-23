@@ -96,8 +96,9 @@ void main() {
     });
 
     test('Static fallback works cleanly without context or provider', () {
+      AppLocalizations.globalLocaleCode = 'en';
       final res = AppLocalizations.staticTr('check_in_button');
-      expect(res, 'Tôi vẫn ổn');
+      expect(res, 'I am okay');
     });
 
     test('All 14 Tier-1 catalogs contain identical key coverage', () {

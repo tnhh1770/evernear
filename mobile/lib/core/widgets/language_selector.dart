@@ -43,7 +43,7 @@ class LanguageSelector extends StatelessWidget {
       } catch (_) {}
     }
 
-    final currentCode = provider?.currentLanguageCode ?? 'vi';
+    final currentCode = provider?.currentLanguageCode ?? 'en';
 
     return Align(
       alignment: alignment,

@@ -162,7 +162,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    AppLocalizations.globalLocaleCode = 'vi';
+    AppLocalizations.globalLocaleCode = 'en';
   });
 
   group('Pre-Auth & Post-Auth Language Synchronization (R2) Lifecycle Tests', () {
@@ -185,23 +185,23 @@ void main() {
       expect(find.byKey(const Key('login_language_dropdown')), findsOneWidget);
       expect(find.byKey(const Key('preauth_language_selector')), findsOneWidget);
 
-      // Initially in Vietnamese
-      expect(localeProvider.currentLanguageCode, 'vi');
-      expect(find.text('Chào mừng trở lại!'), findsOneWidget);
+      // Initially in US English ('en')
+      expect(localeProvider.currentLanguageCode, 'en');
+      expect(find.text('Welcome back!'), findsOneWidget);
 
-      // Change language to English via dropdown
+      // Change language to Vietnamese via dropdown
       await tester.tap(find.byKey(const Key('login_language_dropdown')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('English').last);
+      await tester.tap(find.text('Tiếng Việt').last);
       await tester.pumpAndSettle();
 
       // Verify immediate locale update and persistence
-      expect(localeProvider.currentLanguageCode, 'en');
+      expect(localeProvider.currentLanguageCode, 'vi');
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString(LocaleProvider.prefKeyLocale), 'en');
-      expect(find.text('Welcome back!'), findsOneWidget);
+      expect(prefs.getString(LocaleProvider.prefKeyLocale), 'vi');
+      expect(find.text('Chào mừng trở lại!'), findsOneWidget);
 
-      // 2. Navigate to RegisterScreen - should open directly in English
+      // 2. Navigate to RegisterScreen - should open directly in selected language ('vi')
       await tester.pumpWidget(
         buildReactiveTestApp(
           child: const RegisterScreen(),
@@ -213,9 +213,9 @@ void main() {
 
       expect(find.byKey(const Key('register_language_dropdown')), findsOneWidget);
       expect(find.byKey(const Key('preauth_language_selector')), findsOneWidget);
-      expect(find.text('Create Account'), findsWidgets);
+      expect(find.text('Đăng ký tài khoản'), findsWidgets);
 
-      // 3. Navigate to OnboardingScreen - should render in English with LanguageSelector
+      // 3. Navigate to OnboardingScreen - should render with LanguageSelector
       await tester.pumpWidget(
         buildReactiveTestApp(
           child: const OnboardingScreen(initialPage: 0),

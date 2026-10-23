@@ -44,14 +44,14 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
     it('1.3 should safely handle edge-case locale formats (empty string, null, undefined, mixed case, regional subtags)', () => {
       // Empty string
       const resEmpty = templateService.render('CHECK_IN_PROMPT', {}, '');
-      expect(resEmpty.title).toBe('Evernear — Bạn vẫn ổn chứ?');
+      expect(resEmpty.title).toBe('Evernear — Are you doing okay?');
 
       // Null or undefined cast
       const resNull = templateService.render('CHECK_IN_PROMPT', {}, null as any);
-      expect(resNull.title).toBe('Evernear — Bạn vẫn ổn chứ?');
+      expect(resNull.title).toBe('Evernear — Are you doing okay?');
 
       const resUndef = templateService.render('CHECK_IN_PROMPT', {}, undefined);
-      expect(resUndef.title).toBe('Evernear — Bạn vẫn ổn chứ?');
+      expect(resUndef.title).toBe('Evernear — Are you doing okay?');
 
       // Uppercase regional codes
       const resUS = templateService.render('CHECK_IN_PROMPT', {}, 'EN-US');
@@ -66,10 +66,10 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
 
     it('1.4 should handle empty, undefined, or missing parameter maps without crashing', () => {
       const resDefault = templateService.render('MONITOR_INACTIVITY_WARNING');
-      expect(resDefault.body).toContain('Người thân');
+      expect(resDefault.body).toContain('Loved one');
 
       const resEmptyMap = templateService.render('MONITOR_INACTIVITY_WARNING', {});
-      expect(resEmptyMap.body).toContain('Người thân');
+      expect(resEmptyMap.body).toContain('Loved one');
 
       const resEnEmptyMap = templateService.render('MONITOR_INACTIVITY_WARNING', {}, 'en');
       expect(resEnEmptyMap.body).toContain('Loved one');
@@ -175,7 +175,7 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
       );
     });
 
-    it('2.1 should resolve default "vi" when recipient user does not exist in repository', async () => {
+    it('2.1 should resolve default "en" when recipient user does not exist in repository', async () => {
       userRepo.findOne.mockResolvedValue(null);
       deviceRepo.find.mockResolvedValue([]);
       smsChannel.send.mockResolvedValue({ success: true, messageId: 'sms-1' });
@@ -188,10 +188,10 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
       // FCM fails (no devices) -> cascades to SMS (no phone) -> Telegram (recipientUserId target)
       expect(userRepo.findOne).toHaveBeenCalledWith({ where: { id: 'non-existent-user-id' } });
       const fcmDelivery = deliveries.find((d) => d.channel === NotificationChannelType.FCM);
-      expect(fcmDelivery?.payload.title).toBe('Evernear — Bạn vẫn ổn chứ?');
+      expect(fcmDelivery?.payload.title).toBe('Evernear — Are you doing okay?');
     });
 
-    it('2.2 should resolve default "vi" when user has preferredLanguage as null or undefined', async () => {
+    it('2.2 should resolve default "en" when user has preferredLanguage as null or undefined', async () => {
       userRepo.findOne.mockResolvedValue({
         id: 'u-null-lang',
         preferredLanguage: null,
@@ -207,8 +207,8 @@ describe('Adversarial Backend i18n Stress Harness (Challenger 2)', () => {
         templateName: 'CHECK_IN_PROMPT',
       });
 
-      expect(deliveries[0].payload.title).toBe('Evernear — Bạn vẫn ổn chứ?');
-      expect(deliveries[0].payload.body).toContain('Hệ thống chưa nhận thấy hoạt động mới');
+      expect(deliveries[0].payload.title).toBe('Evernear — Are you doing okay?');
+      expect(deliveries[0].payload.body).toContain('No recent activity was detected');
     });
 
     it('2.3 should honor explicit language override even if user preferredLanguage is different', async () => {

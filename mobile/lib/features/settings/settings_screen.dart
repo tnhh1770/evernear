@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/locale_catalog_registry.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../auth/auth_provider.dart';
 import '../devices/devices_screen.dart';
@@ -382,7 +383,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   subtitle:
                       localeProvider?.currentLanguageDisplayName ??
-                      context.tr('settings_language_auto_vi'),
+                      '${(LocaleCatalogRegistry.findByCode(Localizations.maybeLocaleOf(context)?.languageCode ?? AppLocalizations.globalLocaleCode) ?? LocaleCatalogRegistry.defaultLanguage).nativeName} (${context.tr('common_auto', fallback: 'Auto')})',
                   showDivider: false,
                   onTap: () {
                     Navigator.of(context).push(

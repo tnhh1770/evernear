@@ -24,8 +24,8 @@ void main() {
 
     expect(find.text(AppStrings.appName), findsOneWidget);
     expect(find.text('Email'), findsOneWidget);
-    expect(find.text('Mật khẩu'), findsOneWidget);
-    expect(find.text('Đăng nhập'), findsOneWidget);
-    expect(find.text('Đăng ký ngay'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.text('Register now'), findsOneWidget);
   });
 }

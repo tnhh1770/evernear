@@ -62,7 +62,7 @@ describe('i18n Notifications & Backend User Language (Ext-M1)', () => {
   });
 
   describe('User Profile & Auth Language Handling', () => {
-    it('1. should register user with preferredLanguage default to vi if omitted', async () => {
+    it('1. should register user with preferredLanguage default to en if omitted', async () => {
       const jwtService: any = { sign: vi.fn().mockReturnValue('jwt-token') };
       const configService: any = { get: vi.fn().mockReturnValue('secret') };
       const authService = new AuthService(userRepo, jwtService, configService);
@@ -75,10 +75,10 @@ describe('i18n Notifications & Backend User Language (Ext-M1)', () => {
 
       expect(userRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          preferredLanguage: 'vi',
+          preferredLanguage: 'en',
         }),
       );
-      expect(result.user.preferredLanguage).toBe('vi');
+      expect(result.user.preferredLanguage).toBe('en');
     });
 
     it('2. should register user with explicit preferredLanguage normalized to lowercase', async () => {

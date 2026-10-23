@@ -16,7 +16,7 @@ void main() {
   group('LocaleProvider Unit & State Tests', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
-      AppLocalizations.globalLocaleCode = 'vi';
+      AppLocalizations.globalLocaleCode = 'en';
     });
 
     test('LocaleProvider initializes with device locale when prefs is empty', () async {
@@ -25,6 +25,7 @@ void main() {
 
       expect(provider.isInitialized, isTrue);
       expect(provider.isDeviceDefault, isTrue);
+      expect(provider.currentLocale.languageCode, 'en');
       expect(LocaleCatalogRegistry.isSupported(provider.currentLocale.languageCode), isTrue);
     });
 
@@ -114,7 +115,7 @@ void main() {
   group('LanguageSettingsScreen & SettingsScreen Widget Tests', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
-      AppLocalizations.globalLocaleCode = 'vi';
+      AppLocalizations.globalLocaleCode = 'en';
     });
 
     testWidgets('LanguageSettingsScreen renders search bar and filters languages', (tester) async {
@@ -131,8 +132,8 @@ void main() {
       );
 
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Cài đặt Ngôn ngữ / Language'), findsOneWidget);
-      expect(find.text('Tự động theo thiết bị'), findsOneWidget);
+      expect(find.text('Language Settings'), findsOneWidget);
+      expect(find.text('Automatic (System Default)'), findsOneWidget);
 
       // Search for French
       await tester.enterText(find.byType(TextField), 'français');
@@ -161,9 +162,9 @@ void main() {
         ),
       );
 
-      expect(find.text('Cài đặt & Tài khoản'), findsOneWidget);
-      expect(find.text('Ngôn ngữ / Language'), findsOneWidget);
-      expect(find.text('Tiếng Việt (Tự động)'), findsOneWidget);
+      expect(find.text('Settings & Account'), findsOneWidget);
+      expect(find.text('Language'), findsOneWidget);
+      expect(find.text('English (Auto)'), findsOneWidget);
     });
 
     testWidgets('Unwrapped test safety: context.tr falls back cleanly in bare widget', (tester) async {
@@ -180,8 +181,8 @@ void main() {
         ),
       );
 
-      expect(resolved, 'Tôi vẫn ổn');
-      expect(find.text('Tôi vẫn ổn'), findsOneWidget);
+      expect(resolved, 'I am okay');
+      expect(find.text('I am okay'), findsOneWidget);
     });
   });
 }

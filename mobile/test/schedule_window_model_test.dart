@@ -37,9 +37,10 @@ void main() {
         isEnabled: true,
       );
       expect(overnight.isOvernight, true);
-      expect(overnight.dayNameShort, 'T2');
-      expect(overnight.dayNameFull, 'Thứ Hai');
-      expect(overnight.nextDayNameFull, 'Thứ Ba');
+      expect(overnight.dayNameShort, 'Mon');
+      expect(overnight.dayNameShortLocalized('vi'), 'T2');
+      expect(overnight.dayNameFull, 'Monday');
+      expect(overnight.nextDayNameFull, 'Tuesday');
 
       final daytime = ScheduleWindowModel(
         dayOfWeek: 2, // Tuesday
@@ -48,8 +49,9 @@ void main() {
         isEnabled: true,
       );
       expect(daytime.isOvernight, false);
-      expect(daytime.dayNameShort, 'T3');
-      expect(daytime.dayNameFull, 'Thứ Ba');
+      expect(daytime.dayNameShort, 'Tue');
+      expect(daytime.dayNameShortLocalized('vi'), 'T3');
+      expect(daytime.dayNameFull, 'Tuesday');
     });
 
     test('correctly maps Sunday (0) and wrap-around next day', () {
@@ -60,9 +62,10 @@ void main() {
         isEnabled: true,
       );
       expect(sunday.isOvernight, true);
-      expect(sunday.dayNameShort, 'CN');
-      expect(sunday.dayNameFull, 'Chủ Nhật');
-      expect(sunday.nextDayNameFull, 'Thứ Hai');
+      expect(sunday.dayNameShort, 'Sun');
+      expect(sunday.dayNameShortLocalized('vi'), 'CN');
+      expect(sunday.dayNameFull, 'Sunday');
+      expect(sunday.nextDayNameFull, 'Monday');
     });
 
     test('copyWith works properly without mutating existing object', () {
@@ -130,7 +133,7 @@ void main() {
         endTime: '18:00',
       );
       expect(modelFrom7.dayOfWeek, 0);
-      expect(modelFrom7.dayNameShort, 'CN');
+      expect(modelFrom7.dayNameShort, 'Sun');
 
       final modelFrom14 = ScheduleWindowModel(
         dayOfWeek: 14,
@@ -145,7 +148,7 @@ void main() {
         endTime: '18:00',
       );
       expect(modelFrom8.dayOfWeek, 1);
-      expect(modelFrom8.dayNameShort, 'T2');
+      expect(modelFrom8.dayNameShort, 'Mon');
 
       // fromJson with unnormalized integer or string
       final json7 = ScheduleWindowModel.fromJson({

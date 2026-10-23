@@ -27,7 +27,8 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    AppLocalizations.globalLocaleCode = 'vi';
+    SiteI18nController.instance.clearMemoryCache();
+    AppLocalizations.globalLocaleCode = 'en';
     localeProvider = LocaleProvider();
     await localeProvider.initialize();
     resetWebLandingOverrides();
@@ -68,9 +69,9 @@ void main() {
 
       expect(find.byType(LandingScreen), findsOneWidget);
       expect(find.text('Evernear'), findsWidgets);
-      // Hero CTA buttons
-      expect(find.textContaining('Bắt đầu ngay'), findsWidgets);
-      expect(find.textContaining('Tôi đã có tài khoản'), findsWidgets);
+      // Hero CTA buttons (default US English)
+      expect(find.textContaining('Get Started Now'), findsWidgets);
+      expect(find.textContaining('I already have an account'), findsWidgets);
 
       // Verify no overflow errors
       expect(tester.takeException(), isNull);
@@ -86,9 +87,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(LandingScreen), findsOneWidget);
-      expect(find.text('Chính sách bảo mật'), findsWidgets);
-      expect(find.text('Về trang chủ'), findsOneWidget);
-      expect(find.textContaining('Privacy-by-Default'), findsOneWidget);
+      expect(find.text('Privacy Policy'), findsWidgets);
+      expect(find.text('Back to Home'), findsOneWidget);
+      expect(find.textContaining('Privacy-by-Default'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
@@ -102,8 +103,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(LandingScreen), findsOneWidget);
-      expect(find.text('Điều khoản dịch vụ'), findsWidgets);
-      expect(find.text('Về trang chủ'), findsOneWidget);
+      expect(find.text('Terms of Service'), findsWidgets);
+      expect(find.text('Back to Home'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -117,8 +118,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(LandingScreen), findsOneWidget);
-      expect(find.text('Yêu cầu xoá tài khoản Evernear'), findsOneWidget);
-      expect(find.text('Về trang chủ'), findsOneWidget);
+      expect(find.text('Evernear Account Deletion Request'), findsOneWidget);
+      expect(find.text('Back to Home'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -286,7 +287,7 @@ void main() {
       expect(find.textContaining('support@evernear.app'), findsNothing);
 
       // Record header button Y position before scrolling
-      final openAppBtn = find.text('Mở ứng dụng');
+      final openAppBtn = find.text('Open App');
       expect(openAppBtn, findsOneWidget);
       final initialTopY = tester.getTopLeft(openAppBtn).dy;
       expect(initialTopY, lessThan(80));
@@ -311,22 +312,22 @@ void main() {
       await tester.pumpWidget(buildTestableWidget(SitePageType.landing, size: const Size(1280, 900)));
       await tester.pumpAndSettle();
 
-      // Click 'Giao diện' in header -> scrolls down to #screens
-      await tester.tap(find.text('Giao diện').first);
+      // Click 'Screens' in header -> scrolls down to #screens
+      await tester.tap(find.text('Screens').first);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
-      // Click 'Quyền riêng tư' (i004) in header -> navigates to Privacy page
-      await tester.tap(find.text('Quyền riêng tư').first);
+      // Click 'Privacy' (i004) in header -> navigates to Privacy page
+      await tester.tap(find.text('Privacy').first);
       await tester.pumpAndSettle();
-      expect(find.textContaining('Privacy-by-Default'), findsOneWidget);
+      expect(find.textContaining('Privacy-by-Default'), findsWidgets);
       expect(find.textContaining('support@erai.vn'), findsWidgets);
       expect(tester.takeException(), isNull);
 
-      // From Privacy page, click 'Tính năng' in header -> returns to Landing page and scrolls to #features
-      await tester.tap(find.text('Tính năng').first);
+      // From Privacy page, click 'Features' in header -> returns to Landing page and scrolls to #features
+      await tester.tap(find.text('Features').first);
       await tester.pumpAndSettle();
-      expect(find.textContaining('Bắt đầu ngay'), findsWidgets);
+      expect(find.textContaining('Get Started Now'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
@@ -339,7 +340,7 @@ void main() {
         tester.view.physicalSize = size;
         await tester.pumpWidget(buildTestableWidget(SitePageType.landing, size: size));
         await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull, reason: 'Overflow at viewport $size in vi');
+        expect(tester.takeException(), isNull, reason: 'Overflow at viewport $size in en');
 
         for (final lang in ['ru', 'de', 'ta', 'ar']) {
           await localeProvider.setLocale(Locale(lang));
@@ -354,16 +355,16 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       i18n.clearMemoryCache();
 
-      // 1. Initialize with default 'vi' -> only 'vi' is loaded and cached in localStorage
+      // 1. Initialize with default 'en' -> only 'en' is loaded and cached in localStorage
       final initFuture = i18n.ensureInitialized(localeProvider);
       await tester.pumpAndSettle();
       await initFuture;
-      expect(i18n.currentCode, 'vi');
-      expect(i18n.loadedLanguageCodes.toList(), ['vi']);
+      expect(i18n.currentCode, 'en');
+      expect(i18n.loadedLanguageCodes.toList(), ['en']);
 
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString(SiteI18nController.langStorageKey), 'vi');
-      expect(prefs.getString(SiteI18nController.dictStorageKey('vi')), isNotNull);
+      expect(prefs.getString(SiteI18nController.langStorageKey), 'en');
+      expect(prefs.getString(SiteI18nController.dictStorageKey('en')), isNotNull);
       expect(prefs.getString(SiteI18nController.dictStorageKey('fr')), isNull);
 
       // 2. Switch to 'fr' -> fetches 'fr' on demand and saves to localStorage
@@ -388,10 +389,10 @@ void main() {
       expect(i18n.currentCode, 'ko');
       expect(i18n.tr('i008', 'fallback'), 'LOCAL_STORAGE_CACHED_KO_HEADLINE');
 
-      // Restore 'vi'
-      final viFuture = i18n.selectLanguage('vi', localeProvider: localeProvider);
+      // Restore 'en'
+      final enFuture = i18n.selectLanguage('en', localeProvider: localeProvider);
       await tester.pumpAndSettle();
-      await viFuture;
+      await enFuture;
     });
   });
 }

@@ -21,8 +21,8 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
   String _searchQuery = '';
 
   static const List<({String code, String label})> _featuredLanguages = [
-    (code: 'vi', label: 'Tiếng Việt (VN)'),
     (code: 'en', label: 'English (US)'),
+    (code: 'vi', label: 'Tiếng Việt (VN)'),
     (code: 'ja', label: '日本語 (JP)'),
     (code: 'zh', label: '中文 (CN)'),
   ];
@@ -55,7 +55,7 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
                 context.tr(
                   'settings_language_switched',
                   args: {'language': '${lang.nativeName} (${lang.englishName})'},
-                  fallback: 'Đã chuyển sang ${lang.nativeName}',
+                  fallback: 'Switched to ${lang.nativeName}',
                 ),
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
@@ -88,7 +88,7 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
               child: Text(
                 context.tr(
                   'settings_language_auto_switched',
-                  fallback: 'Đã đặt ngôn ngữ theo mặc định hệ thống',
+                  fallback: 'Language set to system default',
                 ),
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
@@ -119,7 +119,7 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
       authProvider = null;
     }
 
-    final currentCode = localeProvider?.currentLanguageCode ?? 'vi';
+    final currentCode = localeProvider?.currentLanguageCode ?? 'en';
     final isDeviceDefault = localeProvider?.isDeviceDefault ?? false;
 
     final isSearching = _searchQuery.trim().isNotEmpty;
@@ -486,7 +486,7 @@ class _LanguageSettingsScreenState extends State<LanguageSettingsScreen> {
                   ),
                   alignment: Alignment.center,
                   child: Icon(
-                    code == 'vi'
+                    code == 'en'
                         ? Icons.star_outline_rounded
                         : Icons.language_rounded,
                     size: 16,

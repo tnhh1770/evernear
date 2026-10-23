@@ -1,3 +1,4 @@
+import 'dart:ui' show Locale;
 import '../i18n/app_localizations.dart';
 
 class ScheduleWindowModel {
@@ -102,25 +103,25 @@ class ScheduleWindowModel {
   static String _defaultShortDayName(int day) {
     switch (day) {
       case 1:
-        return 'T2';
+        return 'Mon';
       case 2:
-        return 'T3';
+        return 'Tue';
       case 3:
-        return 'T4';
+        return 'Wed';
       case 4:
-        return 'T5';
+        return 'Thu';
       case 5:
-        return 'T6';
+        return 'Fri';
       case 6:
-        return 'T7';
+        return 'Sat';
       case 0:
-        return 'CN';
+        return 'Sun';
       default:
-        return 'T$day';
+        return 'Mon';
     }
   }
 
-  /// Localized short day name (e.g. 'T2'..'CN' for vi, 'Mon'..'Sun' for en)
+  /// Localized short day name (e.g. 'Mon'..'Sun' for en, 'T2'..'CN' for vi)
   String get dayNameShort {
     return AppLocalizations.staticTr(
       shortDayKeyFor(dayOfWeek),
@@ -130,6 +131,12 @@ class ScheduleWindowModel {
 
   /// Explicitly localized short day name
   String dayNameShortLocalized([String? languageCode]) {
+    if (languageCode != null && languageCode.trim().isNotEmpty) {
+      return AppLocalizations(Locale(languageCode.trim())).tr(
+        shortDayKeyFor(dayOfWeek),
+        fallback: _defaultShortDayName(dayOfWeek),
+      );
+    }
     return AppLocalizations.staticTr(
       shortDayKeyFor(dayOfWeek),
       fallback: _defaultShortDayName(dayOfWeek),
